@@ -3,7 +3,7 @@ import os
 import pathlib
 import torch
 from transformers import *
-from src.helper_functions import natural_sort_key
+from helper_functions import natural_sort_key
 
 '''
 Those are the following fields of the json review
