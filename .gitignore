@@ -139,4 +139,4 @@ cython_debug/
 
 data/
 test.py
-
+.idea/
