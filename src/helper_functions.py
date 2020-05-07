@@ -159,6 +159,10 @@ def training_loop(data, test_data, model, device, optimizer, loss_fn, epochs=100
             indices = permutation[i:i + batch_size]
             batch_y = labels[indices]
             batch_x = embeddings[indices, :, :]
+            # for data augmentation
+            # _, seq_len, _ = batch_x.shape
+            # seq_permutation = torch.randperm(seq_len)
+            # batch_x = batch_x[:, seq_permutation, :]
             batch_x.to(device)
             batch_y.to(device)
 

@@ -28,9 +28,9 @@ labels = data_loader.read_labels().to(device)
 _, _, embedding_dimension = embeddings_input.shape
 
 epochs = 200
-batch_size = 64
+batch_size = 80
 lr = 0.0001
-hidden_size = 1000
+hidden_size = 700
 num_layers = 2
 pooling = 'max'
 
