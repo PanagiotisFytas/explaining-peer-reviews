@@ -3,7 +3,8 @@ import torch.nn as nn
 import torch.nn.utils.rnn as rnn
 from DataLoader import DataLoader
 import numpy as np
-from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score, classification_report
+from helper_functions import training_loop, cross_validation_metrics
+from models import BasicGRUClassifier
 
 
 GPU = True
@@ -14,138 +15,106 @@ else:
     device = torch.device("cpu")
 print(device)
 
+cross_validation = True
 
-class LSTMClassifier(nn.Module):
-    def __init__(self, input_size=768, hidden_size=500, num_layers=1):
-        super(LSTMClassifier, self).__init__()
-        self.gru = nn.GRU(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers, dropout=0.5)
-        self.hidden_size = hidden_size
-        self.num_layers = num_layers
-        self.hx = None
-        self.fc1 = nn.Linear(hidden_size, 1)
-        # self.fc2 = nn.Linear(100, 1)
-        self.sigmoid = nn.Sigmoid()
-        self.relu1 = nn.ReLU()
-        self.relu2 = nn.ReLU()
+#
+# class CustomDataset(torch.utils.data.Dataset):
+#     def __init__(self, input, lengths, Y):
+#         self.input = input
+#         self.lengths = lengths
+#         self.Y = Y
+#         self.len = len(input)
+#         self.cnt = 1
+#
+#     def __getitem__(self, idx):
+#         print(self.cnt)
+#         self.cnt += 1
+#         # print({'inp': self.input[idx], 'lengths': self.lengths[idx].item()}, self.Y[idx])
+#         if isinstance(idx, Iterable):
+#             return {'inp': self.input[idx], 'lengths': self.lengths[idx]}, self.Y[idx]
+#         else:
+#             return {'inp': self.input[idx], 'lengths': self.lengths[idx].item()}, self.Y[idx]
+#         # if self.cnt >= self.len:
+#         #     return None
+#         # X, y = {'inp': self.input[idx, :, :], 'lengths': self.lengths[idx]}, self.Y[idx]
+#         # y = y.item() if y is None else y
+#         # Xinp = X['inp'].item() if X['inp'] is None else X['inp']
+#         # Xlengths = X['lengths'].item() if X['lengths'] is None else X['lengths']
+#         # X, y = {'inp': Xinp, 'lengths': Xlengths}, y
+#         # return X, y
+#
+#     def __len__(self):
+#         print(self.len)
+#         return self.len
 
-    def forward(self, inp, lengths):
-        # seq, batch, embedding_dim = inp.shape
-        out = rnn.pack_padded_sequence(inp, lengths, enforce_sorted=False)  # no ONNX exportability
-        # out.to(device)
-        out, self.hx = self.gru(out)
-        inp, _output_lengths = rnn.pad_packed_sequence(out)
-        final_state = self.hx.view(self.num_layers, 1, inp.shape[1], self.hidden_size)[-1].squeeze()
-        out = self.relu1(final_state)
-        out = self.fc1(out)
-        # out = self.relu2(out)
-        # out = self.fc2(out)
-        out = torch.sigmoid(out)
-        return out
 
+data_loader = DataLoader(device=device, truncate_policy='right')
 
-data_loader = DataLoader(device=device)
-X = data_loader.read_embeddigns_from_file()
-data = rnn.pad_sequence(X).to(device)
-X_lengths = torch.tensor([reviews.shape[0] for reviews in X]).to(device)
-
+embeddings_input = data_loader.read_embeddigns_from_file()
+number_of_reviews = torch.tensor([reviews.shape[0] for reviews in embeddings_input]).to(device)
+embeddings_input = rnn.pad_sequence(embeddings_input, batch_first=True).to(device)  # pad the reviews to form a tensor
+print(embeddings_input.shape)
 labels = data_loader.read_labels().to(device)
 
-shuffle = True
-valid_size = 0.2
+_, _, embedding_dimension = embeddings_input.shape
 
-num_train = data.shape[1]
-indices = list(range(num_train))
-split = int(np.floor(valid_size * num_train))
-
-if shuffle:
-    np.random.shuffle(indices)
-
-train_idx, test_idx = indices[split:], indices[:split]
-
-test_data = data[:, test_idx, :]
-test_X_lengths = X_lengths[test_idx]
-test_labels = labels[test_idx]
-
-data = data[:, train_idx, :]
-X_lengths = X_lengths[train_idx]
-labels = labels[train_idx]
-
-
-# print(X_lengths)
-# X_prime = rnn.pad_sequence(X)
-# print(X_prime.data.shape)
-# seq_len, batch, input_size = X.data.shape
-# X_2 = rnn.pack_sequence(X, enforce_sorted=False)  # no ONNX exportability
-
-# input_size = 768
-# N = 427
-
-_seq_len, N, input_size = data.shape
-_, test_N, _ = test_data.shape
-print(data.shape, test_data.shape)
-
-model = LSTMClassifier(input_size=input_size, hidden_size=500, num_layers=2)
-model.to(device)
-# print(labels)
-# print(len(labels))
-#
-# print(model(X[:10]))
-
-epochs = 100
-batch_size = 16
+epochs = 200
+batch_size = 64
 lr = 0.0001
+hidden_size = 1000
+num_layers = 2
+pooling = 'max'
 
-optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-loss_fn = nn.BCELoss()
+if cross_validation:
+    network = BasicGRUClassifier
+    network_params = {
+        'input_size': embedding_dimension,
+        'hidden_size': hidden_size,
+        'num_layers': num_layers,
+        'pooling': pooling
+    }
+    optimizer = torch.optim.Adam
+    lr = lr
+    loss_fn = nn.BCELoss
+    data = [embeddings_input, number_of_reviews, labels]
+    cross_validation_metrics(network, network_params, optimizer, loss_fn, lr,
+                             epochs, batch_size, device, data, k=5, shuffle=True)
+    # # dataset = CustomDataset(embeddings_input, number_of_reviews, labels)
+    # dataset = Dataset({'inp': embeddings_input, 'lengths': number_of_reviews}, labels)
+    # # X_dict = {'inp': embeddings_input, 'lengths': number_of_reviews}
+    # print(embeddings_input.shape, number_of_reviews.shape, labels.shape)
+    # net.fit(dataset, y=labels)
+    # preds = cross_val_predict(net, dataset, y=labels.to('cpu'), cv=5)
+else:
+    # hold-one-out split
+    model = BasicGRUClassifier(input_size=embedding_dimension, hidden_size=hidden_size, num_layers=num_layers)
+    shuffle = True
+    valid_size = 0.2
+    print(embeddings_input.shape)
 
-for epoch in range(1, epochs+1):
-    permutation = torch.randperm(N)
-    model.train()
-    for i in range(0, N, batch_size):
-        optimizer.zero_grad()
+    num_train = embeddings_input.shape[0]
+    indices = list(range(num_train))
+    split = int(np.floor(valid_size * num_train))
 
-        indices = permutation[i:i + batch_size]
-        batch_y = labels[indices]
-        batch_x = data[:, indices, :]
-        batch_x.to(device)
-        batch_y.to(device)
+    if shuffle:
+        np.random.shuffle(indices)
 
+    train_idx, test_idx = indices[split:], indices[:split]
 
-        batch_lengths = X_lengths[indices]
-        batch_lengths.to(device)
+    test_embeddings_input = embeddings_input[test_idx, :, :]
+    test_number_of_reviews = number_of_reviews[test_idx]
+    test_labels = labels[test_idx]
 
-        preds = model(batch_x, batch_lengths).squeeze(1)
-        loss = loss_fn(preds, batch_y)
-        train_loss = loss.item()
-        loss.backward()
-        model.hx = model.hx.detach()
-        optimizer.step()
+    embeddings_input = embeddings_input[train_idx, :, :]
+    number_of_reviews = number_of_reviews[train_idx]
+    labels = labels[train_idx]
 
-    model.eval()
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    loss_fn = nn.BCELoss()
+    data = [embeddings_input, number_of_reviews, labels]
+    test_data = [test_embeddings_input, test_number_of_reviews, test_labels]
 
-    predictions = model(data, X_lengths)
-    preds = predictions.view(-1) >= 0.5
-    targets = labels >= 0.5
+    model.to(device)
 
-    accuracy = (preds == targets).sum() * (1 / N)
-    print('-----EPOCH ' + str(epoch) + '-----')
-    print('Accuracy on train set: ', accuracy)
-
-    predictions = model(test_data, test_X_lengths)
-    preds = (predictions.view(-1) >= 0.5).to(device='cpu', dtype=torch.int)
-    targets = (test_labels >= 0.5).to(device='cpu', dtype=torch.int)
-
-    # print(preds.shape)
-    # print(targets.shape)
-    accuracy = (preds == targets).sum() * (1/test_N)
-    print('Accuracy on test set: ', accuracy)
-    print('Confusion on test set: ', confusion_matrix(targets.numpy(), preds.numpy()))
-    print('Precision on test set: ', precision_score(targets.numpy(), preds.numpy()))
-    print('Recall on test set: ', recall_score(targets, preds))
-    print('F1 on test set: ', f1_score(targets, preds))
-    print('Report:\n', classification_report(targets, preds))
-    print('-----------------')
-    # predictions = model(test_data).squeeze(1)
-    # print('RMSE on test set: ', rmse(predictions, test_labels))
-
+    training_loop(data, test_data, model, device, optimizer, loss_fn, epochs=100, batch_size=64)
 
