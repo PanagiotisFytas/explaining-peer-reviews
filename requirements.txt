@@ -65,6 +65,8 @@ scipy==1.4.1
 Send2Trash==1.5.0
 sentencepiece==0.1.86
 six==1.14.0
+skorch==0.8.0
+tabulate==0.8.7
 terminado==0.8.3
 testpath==0.4.4
 tokenizers==0.5.2

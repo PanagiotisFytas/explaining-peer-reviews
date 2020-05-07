@@ -17,37 +17,6 @@ print(device)
 
 cross_validation = True
 
-#
-# class CustomDataset(torch.utils.data.Dataset):
-#     def __init__(self, input, lengths, Y):
-#         self.input = input
-#         self.lengths = lengths
-#         self.Y = Y
-#         self.len = len(input)
-#         self.cnt = 1
-#
-#     def __getitem__(self, idx):
-#         print(self.cnt)
-#         self.cnt += 1
-#         # print({'inp': self.input[idx], 'lengths': self.lengths[idx].item()}, self.Y[idx])
-#         if isinstance(idx, Iterable):
-#             return {'inp': self.input[idx], 'lengths': self.lengths[idx]}, self.Y[idx]
-#         else:
-#             return {'inp': self.input[idx], 'lengths': self.lengths[idx].item()}, self.Y[idx]
-#         # if self.cnt >= self.len:
-#         #     return None
-#         # X, y = {'inp': self.input[idx, :, :], 'lengths': self.lengths[idx]}, self.Y[idx]
-#         # y = y.item() if y is None else y
-#         # Xinp = X['inp'].item() if X['inp'] is None else X['inp']
-#         # Xlengths = X['lengths'].item() if X['lengths'] is None else X['lengths']
-#         # X, y = {'inp': Xinp, 'lengths': Xlengths}, y
-#         # return X, y
-#
-#     def __len__(self):
-#         print(self.len)
-#         return self.len
-
-
 data_loader = DataLoader(device=device, truncate_policy='right')
 
 embeddings_input = data_loader.read_embeddigns_from_file()
