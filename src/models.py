@@ -16,7 +16,7 @@ class BasicGRUClassifier(nn.Module):
         # self.fc2 = nn.Linear(100, 1)
         self.sigmoid = nn.Sigmoid()
         self.relu1 = nn.ReLU()
-        self.relu2 = nn.ReLU()
+        # self.relu2 = nn.ReLU()
 
     def forward(self, inp, lengths):
         # seq, batch, embedding_dim = inp.shape
