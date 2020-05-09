@@ -10,7 +10,7 @@ from models import BasicGRUClassifier
 GPU = True
 device_idx = 0
 if GPU:
-    device = torch.device("cuda:" + str(device_idx) if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 else:
     device = torch.device("cpu")
 print(device)
