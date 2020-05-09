@@ -114,6 +114,7 @@ class DataLoader:
                 batch_input_ids = self.tokenizer.batch_encode_plus(reviews, max_length=self.MAXLEN,
                                                                    pad_to_max_length=True, return_tensors='pt')
             elif self.truncate_policy == 'left':
+                # left is bugged.
                 batch_input_ids = self.tokenizer.batch_encode_plus(reviews,
                                                                    pad_to_max_length=True, return_tensors='pt')
                 for key, tensor in batch_input_ids.items():

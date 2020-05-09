@@ -27,4 +27,4 @@ The files can be executed by running, for instance, the following:
 ```bash
 python src/basic_GRU_Classifier.py
 ```
-
+Those scrips need to run from the ROOT directory of the project.
