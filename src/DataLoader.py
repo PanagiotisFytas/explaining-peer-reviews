@@ -4,6 +4,7 @@ import pathlib
 import torch
 from transformers import *
 from helper_functions import natural_sort_key
+import sys
 
 '''
 Those are the following fields of the json review
@@ -251,7 +252,7 @@ class DataLoader:
         return self.labels
 
 
-def read_data_and_write_embeddings(truncate_policy='left'):
+if __name__ == '__main__':
     GPU = True
     device_idx = 0
     if GPU:
@@ -259,11 +260,10 @@ def read_data_and_write_embeddings(truncate_policy='left'):
     else:
         device = torch.device("cpu")
     print(device)
-
-    r = DataLoader(device, truncate_policy=truncate_policy)
-    r.get_embeddings_from_reviews()
-    r.write_embeddings_to_file()
-    # r.read_embeddigns_from_file()
+    for policy in sys.argv[1:]:
+        r = DataLoader(device, truncate_policy=policy)
+        r.get_embeddings_from_reviews()
+        r.write_embeddings_to_file()
 
 # GPU = True
 # device_idx = 0
