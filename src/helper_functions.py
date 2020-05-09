@@ -172,7 +172,7 @@ def training_loop(data, test_data, model, device, optimizer, loss_fn, epochs=100
             preds = model(batch_x, batch_lengths).squeeze(1)
             loss = loss_fn(preds, batch_y)
             train_loss = loss.item()
-            loss.backward()
+            loss.backward(allow_unreachable=True)
             model.hx = model.hx.detach()
             optimizer.step()
 
