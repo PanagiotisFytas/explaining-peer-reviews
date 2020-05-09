@@ -251,6 +251,20 @@ class DataLoader:
         return self.labels
 
 
+def read_data_and_write_embeddings(truncate_policy='left'):
+    GPU = True
+    device_idx = 0
+    if GPU:
+        device = torch.device("cuda:" + str(device_idx) if torch.cuda.is_available() else "cpu")
+    else:
+        device = torch.device("cpu")
+    print(device)
+
+    r = DataLoader(device, truncate_policy=truncate_policy)
+    r.get_embeddings_from_reviews()
+    r.write_embeddings_to_file()
+    # r.read_embeddigns_from_file()
+
 # GPU = True
 # device_idx = 0
 # if GPU:

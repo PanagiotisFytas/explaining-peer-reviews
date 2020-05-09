@@ -7,8 +7,9 @@
 Collect the PeerRead dataset from https://github.com/allenai/PeerRead:  
 
 ```bash
+mkdir data
 cd data/
-git clone git@github.com:allenai/PeerRead.git
+git clone https://github.com/allenai/PeerRead.git
 ```
 
 ## Libraries
@@ -24,6 +25,6 @@ pip install -r requirements.txt
 
 The files can be executed by running, for instance, the following:
 ```bash
-python src/basic_LSTM_Classifier.py
+python src/basic_GRU_Classifier.py
 ```
 
