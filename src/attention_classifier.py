@@ -28,9 +28,9 @@ labels = data_loader.read_labels().to(device)
 _, _, embedding_dimension = embeddings_input.shape
 
 epochs = 500
-batch_size = 100
+batch_size = 100  # 30
 lr = 0.0001
-hidden_dimensions = [2000, 1200]
+hidden_dimensions = [1500, 700, 300]
 
 if cross_validation:
     network = AttentionClassifier

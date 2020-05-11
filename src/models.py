@@ -72,9 +72,9 @@ class AttentionClassifier(nn.Module):
             layer_input = layer_out
         self.last_fc = nn.Linear(layer_input, 1)
         self.sigmoid = nn.Sigmoid()
-        self.relu = nn.ReLU()
+        self.activation= nn.Tanh()
         # self.relu2 = nn.ReLU()
-        self.drop = nn.Dropout(0.5)
+        self.drop = nn.Dropout(0.2)
         self.att = nn.Linear(input_size, 1)
         self.att2 = nn.Linear(input_size, 1)
 
@@ -94,7 +94,7 @@ class AttentionClassifier(nn.Module):
         # out = self.relu(out)
         for layer in self.fc_layers:
             out = layer(out)
-            out = self.relu(out)
+            out = self.activation(out)
             out = self.drop(out)
 
         out = self.last_fc(out)
