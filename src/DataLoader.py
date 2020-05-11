@@ -119,8 +119,8 @@ class DataLoader:
                                                                    pad_to_max_length=True, return_tensors='pt')
                 for key, tensor in batch_input_ids.items():
                     # batch_input_ids[key] = tensor[:, -self.MAXLEN:]
-                    head = tensor[:, :1]
-                    tail = tensor[:, -self.MAXLEN-1:]
+                    head = tensor[:, :2]
+                    tail = tensor[:, -self.MAXLEN-2:]
                     batch_input_ids[key] = torch.cat([head, tail], dim=1)
             elif self.truncate_policy == 'mid':
                 batch_input_ids = self.tokenizer.batch_encode_plus(reviews,
@@ -129,8 +129,15 @@ class DataLoader:
                     head = tensor[:, :self.HEAD]
                     tail = tensor[:, -self.TAIL:]
                     batch_input_ids[key] = torch.cat([head, tail], dim=1)
+            elif self.truncate_policy == 'half':
+                batch_input_ids = self.tokenizer.batch_encode_plus(reviews,
+                                                                   pad_to_max_length=True, return_tensors='pt')
+                for key, tensor in batch_input_ids.items():
+                    head = tensor[:, :int(self.MAXLEN/2)]
+                    tail = tensor[:, -int(self.MAXLEN/2):]
+                    batch_input_ids[key] = torch.cat([head, tail], dim=1)
             else:
-                raise Exception('Invalid truncation policy. Choose from: mid, left, right')
+                raise Exception('Invalid truncation policy. Choose from: mid, left, right, half')
             # print(batch_input_ids)
             for key, tensor in batch_input_ids.items():
                 batch_input_ids[key] = tensor.to(self.device)

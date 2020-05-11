@@ -4,7 +4,7 @@ import torch.nn.utils.rnn as rnn
 from DataLoader import DataLoader
 import numpy as np
 from helper_functions import training_loop, cross_validation_metrics
-from models import BasicGRUClassifier
+from models import AttentionClassifier
 
 
 GPU = True
@@ -27,29 +27,23 @@ labels = data_loader.read_labels().to(device)
 
 _, _, embedding_dimension = embeddings_input.shape
 
-epochs = 200
-batch_size = 80
+epochs = 500
+batch_size = 100
 lr = 0.0001
-hidden_size = 700
-num_layers = 2
-pooling = 'max'
-bidirectional = False
+hidden_dimensions = [2000, 1200]
 
 if cross_validation:
-    network = BasicGRUClassifier
+    network = AttentionClassifier
     network_params = {
         'input_size': embedding_dimension,
-        'hidden_size': hidden_size,
-        'num_layers': num_layers,
-        'pooling': pooling,
-        'bidirectional': bidirectional
+        'hidden_dimensions': hidden_dimensions,
     }
     optimizer = torch.optim.Adam
     lr = lr
     loss_fn = nn.BCELoss
     data = [embeddings_input, number_of_reviews, labels]
     cross_validation_metrics(network, network_params, optimizer, loss_fn, lr,
-                             epochs, batch_size, device, data, k=10, shuffle=True, gru_model=True)
+                             epochs, batch_size, device, data, k=10, shuffle=True)
     # # dataset = CustomDataset(embeddings_input, number_of_reviews, labels)
     # dataset = Dataset({'inp': embeddings_input, 'lengths': number_of_reviews}, labels)
     # # X_dict = {'inp': embeddings_input, 'lengths': number_of_reviews}
@@ -58,7 +52,7 @@ if cross_validation:
     # preds = cross_val_predict(net, dataset, y=labels.to('cpu'), cv=5)
 else:
     # hold-one-out split
-    model = BasicGRUClassifier(input_size=embedding_dimension, hidden_size=hidden_size, num_layers=num_layers)
+    model = AttentionClassifier(input_size=embedding_dimension, hidden_dimensions=hidden_dimensions)
     shuffle = True
     valid_size = 0.2
     print(embeddings_input.shape)
@@ -87,5 +81,5 @@ else:
 
     model.to(device)
 
-    training_loop(data, test_data, model, device, optimizer, loss_fn, epochs=100, batch_size=64, gru_model=True)
+    training_loop(data, test_data, model, device, optimizer, loss_fn, epochs=100, batch_size=64)
 

@@ -98,8 +98,8 @@ class Metrics:
             return self.__add__(other)
 
 
-def cross_validation_metrics(network, network_params, optimizer_class, loss_fn_class, lr, epochs, batch_size, device, data, k=5,
-                     shuffle=True):
+def cross_validation_metrics(network, network_params, optimizer_class, loss_fn_class, lr, epochs, batch_size, device,
+                             data, k=5, gru_model=False, shuffle=True):
     input, lengths, labels = data
     training_parameters = {'epochs': epochs, 'batch_size': batch_size}
 
@@ -133,7 +133,8 @@ def cross_validation_metrics(network, network_params, optimizer_class, loss_fn_c
 
         train_data = [train_input, train_length, train_labels]
         valid_data = [valid_input, valid_length, valid_labels]
-        training_loop(train_data, valid_data, model, device, optimizer, loss_fn, **training_parameters, verbose=False)
+        training_loop(train_data, valid_data, model, device, optimizer, loss_fn, **training_parameters,
+                      gru_model=gru_model, verbose=False)
         metrics = Metrics(valid_data, model)
         print(metrics)
         cv_metrics.append(metrics)
@@ -145,7 +146,8 @@ def cross_validation_metrics(network, network_params, optimizer_class, loss_fn_c
     print(sum(cv_metrics)/k)
 
 
-def training_loop(data, test_data, model, device, optimizer, loss_fn, epochs=100, batch_size=64, verbose=True):
+def training_loop(data, test_data, model, device, optimizer, loss_fn, epochs=100, batch_size=64, gru_model=False,
+                  verbose=True):
     embeddings, lengths, labels = data
     test_embeddings, test_lengths, test_labels = test_data
     N, _seq_len, input_size = embeddings.shape
@@ -172,8 +174,9 @@ def training_loop(data, test_data, model, device, optimizer, loss_fn, epochs=100
             preds = model(batch_x, batch_lengths).squeeze(1)
             loss = loss_fn(preds, batch_y)
             train_loss = loss.item()
-            loss.backward(allow_unreachable=True)
-            model.hx = model.hx.detach()
+            loss.backward()
+            if gru_model:
+                model.hx = model.hx.detach()
             optimizer.step()
 
         if verbose:
