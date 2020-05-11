@@ -59,6 +59,7 @@ class BasicGRUClassifier(nn.Module):
         return out
 
 
+# this model is using 2 heads of attention
 class AttentionClassifier(nn.Module):
     def __init__(self, input_size=768, hidden_dimensions=[500]):
         super(AttentionClassifier, self).__init__()

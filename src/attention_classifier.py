@@ -43,7 +43,7 @@ if cross_validation:
     loss_fn = nn.BCELoss
     data = [embeddings_input, number_of_reviews, labels]
     cross_validation_metrics(network, network_params, optimizer, loss_fn, lr,
-                             epochs, batch_size, device, data, k=10, shuffle=True)
+                             epochs, batch_size, device, data, k=5, shuffle=True)
     # # dataset = CustomDataset(embeddings_input, number_of_reviews, labels)
     # dataset = Dataset({'inp': embeddings_input, 'lengths': number_of_reviews}, labels)
     # # X_dict = {'inp': embeddings_input, 'lengths': number_of_reviews}
