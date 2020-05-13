@@ -140,3 +140,5 @@ cython_debug/
 data/
 test.py
 .idea/
+*.pt
+test.json

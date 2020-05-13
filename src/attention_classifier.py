@@ -53,7 +53,7 @@ if cross_validation:
 else:
     # hold-one-out split
     model = AttentionClassifier(input_size=embedding_dimension, hidden_dimensions=hidden_dimensions)
-    shuffle = True
+    shuffle = False
     valid_size = 0.2
     print(embeddings_input.shape)
 
@@ -81,5 +81,6 @@ else:
 
     model.to(device)
 
-    training_loop(data, test_data, model, device, optimizer, loss_fn, epochs=100, batch_size=64)
+    training_loop(data, test_data, model, device, optimizer, loss_fn, epochs=epochs, batch_size=batch_size)
 
+    torch.save(model, 'attention_classifier.pt')

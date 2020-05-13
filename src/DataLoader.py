@@ -82,10 +82,10 @@ class DataLoader:
         self.files = train_files + test_files + dev_files
 
         # There is a 0.8-0.1-0.1 split on the data. I am merging the data so we can decide on a different split.
-
+        print(self.files)
         # Peer reviews from paper
         self.paper_reviews = []
-        # self._read_full_reviews()
+        # self.read_full_reviews()
         self.embeddings_from_reviews = []
         self.device = device
         self.labels = []
@@ -96,69 +96,62 @@ class DataLoader:
     def get_dir_name(self):
         return '_'.join([self.model_class.__name__, self.pretrained_weights, 'truncate-from-' + self.truncate_policy])
 
+    def reviews_to_embeddings(self, reviews):
+        if self.truncate_policy == 'right':
+            batch_input_ids = self.tokenizer.batch_encode_plus(reviews, max_length=self.MAXLEN,
+                                                               pad_to_max_length=True, return_tensors='pt')
+        elif self.truncate_policy == 'left':
+            # left is bugged.
+            batch_input_ids = self.tokenizer.batch_encode_plus(reviews,
+                                                               pad_to_max_length=True, return_tensors='pt')
+            for key, tensor in batch_input_ids.items():
+                # batch_input_ids[key] = tensor[:, -self.MAXLEN:]
+                head = tensor[:, :2]
+                tail = tensor[:, -self.MAXLEN - 2:]
+                batch_input_ids[key] = torch.cat([head, tail], dim=1)
+        elif self.truncate_policy == 'mid':
+            batch_input_ids = self.tokenizer.batch_encode_plus(reviews,
+                                                               pad_to_max_length=True, return_tensors='pt')
+            for key, tensor in batch_input_ids.items():
+                head = tensor[:, :self.HEAD]
+                tail = tensor[:, -self.TAIL:]
+                batch_input_ids[key] = torch.cat([head, tail], dim=1)
+        elif self.truncate_policy == 'half':
+            batch_input_ids = self.tokenizer.batch_encode_plus(reviews,
+                                                               pad_to_max_length=True, return_tensors='pt')
+            for key, tensor in batch_input_ids.items():
+                head = tensor[:, :int(self.MAXLEN / 2)]
+                tail = tensor[:, -int(self.MAXLEN / 2):]
+                batch_input_ids[key] = torch.cat([head, tail], dim=1)
+        else:
+            raise Exception('Invalid truncation policy. Choose from: mid, left, right, half')
+        # print(batch_input_ids)
+        for key, tensor in batch_input_ids.items():
+            batch_input_ids[key] = tensor.to(self.device)
+        with torch.no_grad():
+            reviews_embeddings = self.model(**batch_input_ids)
+
+        # --clear from GPU memory--
+        for tensor in batch_input_ids.values():
+            del tensor
+        embeddings = reviews_embeddings[1].cpu()
+        for emb in reviews_embeddings:
+            del emb
+        torch.cuda.empty_cache()
+        return embeddings
+        # -------------------------
+
     def _create_embeddings(self):
         self.model.to(self.device)
         cnt = 0
         for reviews in self.paper_reviews:
-            # embeddings = []
-            # for review in paper:
-            #     print(review)
-            #     input_ids = torch.tensor([self.tokenizer.encode(review, max_length=512)])
-            #     with torch.no_grad():
-            #         _last_hidden_states, classification_token_state = self.model(input_ids)
-            #     embeddings.append(classification_token_state)
-            # embeddings = torch.cat(embeddings)
-            # embeddings = embeddings.view((1, len(reviews), -1))
-            # self.embeddings_from_reviews.append(embeddings)
-            if self.truncate_policy == 'right':
-                batch_input_ids = self.tokenizer.batch_encode_plus(reviews, max_length=self.MAXLEN,
-                                                                   pad_to_max_length=True, return_tensors='pt')
-            elif self.truncate_policy == 'left':
-                # left is bugged.
-                batch_input_ids = self.tokenizer.batch_encode_plus(reviews,
-                                                                   pad_to_max_length=True, return_tensors='pt')
-                for key, tensor in batch_input_ids.items():
-                    # batch_input_ids[key] = tensor[:, -self.MAXLEN:]
-                    head = tensor[:, :2]
-                    tail = tensor[:, -self.MAXLEN-2:]
-                    batch_input_ids[key] = torch.cat([head, tail], dim=1)
-            elif self.truncate_policy == 'mid':
-                batch_input_ids = self.tokenizer.batch_encode_plus(reviews,
-                                                                   pad_to_max_length=True, return_tensors='pt')
-                for key, tensor in batch_input_ids.items():
-                    head = tensor[:, :self.HEAD]
-                    tail = tensor[:, -self.TAIL:]
-                    batch_input_ids[key] = torch.cat([head, tail], dim=1)
-            elif self.truncate_policy == 'half':
-                batch_input_ids = self.tokenizer.batch_encode_plus(reviews,
-                                                                   pad_to_max_length=True, return_tensors='pt')
-                for key, tensor in batch_input_ids.items():
-                    head = tensor[:, :int(self.MAXLEN/2)]
-                    tail = tensor[:, -int(self.MAXLEN/2):]
-                    batch_input_ids[key] = torch.cat([head, tail], dim=1)
-            else:
-                raise Exception('Invalid truncation policy. Choose from: mid, left, right, half')
-            # print(batch_input_ids)
-            for key, tensor in batch_input_ids.items():
-                batch_input_ids[key] = tensor.to(self.device)
-            with torch.no_grad():
-                reviews_embeddings = self.model(**batch_input_ids)
-
-            # --clear from GPU memory--
-            for tensor in batch_input_ids.values():
-                del tensor
-            pooled_embeddings = reviews_embeddings[1].cpu()
-            for emb in reviews_embeddings:
-                del emb
-            torch.cuda.empty_cache()
-            # -------------------------
-
-            self.embeddings_from_reviews.append(pooled_embeddings)
+            embeddings = self.reviews_to_embeddings(reviews)
+            self.embeddings_from_reviews.append(embeddings)
             cnt += 1
             print(cnt)
         return self.embeddings_from_reviews
 
-    def _read_full_reviews(self):
+    def read_full_reviews(self):
         for i, file in enumerate(self.files):
             with open(file) as json_file:
                 full_reviews = json.load(json_file)
@@ -173,7 +166,7 @@ class DataLoader:
                     self.paper_reviews.append(reviews_for_specific_paper)
         return self.paper_reviews
 
-    def _read_reviews_only_text(self):
+    def read_reviews_only_text(self):
         for i, file in enumerate(self.files):
             with open(file) as json_file:
                 full_reviews = json.load(json_file)
@@ -230,7 +223,7 @@ class DataLoader:
         print(field_counters)
 
     def get_embeddings_from_reviews(self):
-        self._read_reviews_only_text()
+        self.read_reviews_only_text()
         self._get_full_review_stats()
         return self._create_embeddings()
 
