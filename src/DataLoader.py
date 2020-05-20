@@ -5,6 +5,9 @@ import torch
 from transformers import *
 from helper_functions import natural_sort_key
 import sys
+import nltk
+from nltk.corpus import stopwords
+
 
 '''
 Those are the following fields of the json review
@@ -34,6 +37,13 @@ Each review has the following fields (the numbers are counters):
         every reviews that is not a meta review has a title and date
 
 '''
+stopwords_en = stopwords.words('english')
+stopwords_kept = ['am', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'having', 'do',
+                  'does', 'did', 'doing', 'no', 'nor', 'not', 'can', 'will', 'don', "don't", 'should', "should've",
+                  'll', 'ain', 'aren', "aren't", 'couldn', "couldn't", 'didn', "didn't", 'doesn', "doesn't", 'hadn',
+                  "hadn't", 'hasn', "hasn't", 'haven', "haven't", 'isn', "isn't", 'mightn', "mightn't", 'mustn',
+                  "mustn't", 'needn', "needn't", 'shan', "shan't", 'shouldn', "shouldn't", 'wasn', "wasn't", 'weren',
+                  "weren't", 'won', "won't", 'wouldn', "wouldn't"]
 
 
 class DataLoader:
@@ -42,30 +52,57 @@ class DataLoader:
     HEAD = 128
     TAIL = 384
     MAXLEN = 512
+    SCIBERT_PATH = '/home/panagiotis/Documents/Imperial/PeerReviewClassification/vocabulary/scibert_scivocab_uncased'
 
     def __init__(self, device, full_reviews=False, meta_reviews=False, conference='iclr_2017',
                  model_class=BertModel, tokenizer_class=BertTokenizer, pretrained_weights='bert-base-cased',
-                 truncate_policy='right'):
+                 truncate_policy='right', final_decision='include', allow_empty=True, remove_duplicates=True,
+                 remove_stopwords=False):
+        """
 
+        :param device: 'cuda' or 'cpu'
+        :param full_reviews:
+        :param meta_reviews:
+        :param conference:
+        :param model_class:
+        :param tokenizer_class:
+        :param pretrained_weights:
+        :param truncate_policy:
+        :param final_decision: 'include', 'exclude', 'only'
+        :param allow_empty
+        """
         # features from the review used
         self.full_reviews = full_reviews
         self.meta_reviews = meta_reviews
+        self.final_decision = final_decision
+        if final_decision not in ['include', 'exclude', 'only']:
+            raise Exception('Wrong final_decision value')
+        self.allow_empty = allow_empty
         self.conference = conference
+        self.remove_duplicates = remove_duplicates
+        self.remove_stopwords = remove_stopwords
+        if remove_stopwords:
+            self.stopwords = list(set(stopwords_en) - set(stopwords_kept))
 
         # Different transformer models options
         self.model_class = model_class
         self.tokenizer_class = tokenizer_class
-        self.pretrained_weights = pretrained_weights
+        if pretrained_weights == 'scibert_scivocab_uncased':
+            self.pretrained_weights = self.SCIBERT_PATH
+            self.pretrained_weights_name = pretrained_weights
+        else:
+            self.pretrained_weights = pretrained_weights
+            self.pretrained_weights_name = pretrained_weights
+
         self.truncate_policy = truncate_policy  # By default it truncates from right, i.e., the end of the review
         # https://stackoverflow.com/questions/58636587/how-to-use-bert-for-long-text-classification -
         # https://arxiv.org/pdf/1905.05583.pdf : truncation policy
 
         # Construct pretrained transformer model
         # TODO there is a lowercasing probably
-        self.tokenizer = tokenizer_class.from_pretrained(pretrained_weights)
-        self.model = model_class.from_pretrained(pretrained_weights)
+        self.tokenizer = tokenizer_class.from_pretrained(self.pretrained_weights)
+        self.model = model_class.from_pretrained(self.pretrained_weights)
         self.model.eval()
-
 
         # get file names
         train_path = self.ROOT / ('data/PeerRead/data/' + conference) / 'train/reviews/'
@@ -94,9 +131,35 @@ class DataLoader:
         self.path = self.ROOT / 'data/embeddings/' / self.conference / 'pre_trained' / self.get_dir_name()
 
     def get_dir_name(self):
-        return '_'.join([self.model_class.__name__, self.pretrained_weights, 'truncate-from-' + self.truncate_policy])
+        if self.final_decision == 'include':
+            ret = '_'.join([
+                self.model_class.__name__,
+                self.pretrained_weights_name,
+                'truncate-from-' + self.truncate_policy
+            ])
+        else:
+            ret = '_'.join([
+                self.model_class.__name__,
+                self.pretrained_weights_name,
+                'truncate-from-' + self.truncate_policy,
+                'final-decision-' + self.final_decision
+            ])
+        if not self.allow_empty:
+            ret += '_not-allow-empty'
+        if self.remove_duplicates:
+            ret += '_remove-duplicates'
+        if self.remove_stopwords:
+            ret += '_remove-stopwords'
+        return ret
 
     def reviews_to_embeddings(self, reviews):
+        if self.remove_stopwords:
+            for idx, review in enumerate(reviews):
+                rev = review
+                rev = ' '.join([
+                    word for word in rev.split() if word.lower() not in (self.stopwords)
+                ])
+                reviews[idx] = rev
         if self.truncate_policy == 'right':
             batch_input_ids = self.tokenizer.batch_encode_plus(reviews, max_length=self.MAXLEN,
                                                                pad_to_max_length=True, return_tensors='pt')
@@ -151,7 +214,15 @@ class DataLoader:
             print(cnt)
         return self.embeddings_from_reviews
 
+    def exclude(self, review):
+        # exclude empty reviews and final decision if specified
+        return (not self.allow_empty and not review['comments'])\
+               or (self.final_decision == 'exclude' and review.get('TITLE') == 'ICLR committee final decision')
+
     def read_full_reviews(self):
+        """
+        :returns both the text of the reviews and the metadata of the reviews
+        """
         for i, file in enumerate(self.files):
             with open(file) as json_file:
                 full_reviews = json.load(json_file)
@@ -160,12 +231,19 @@ class DataLoader:
                 else:
                     reviews_for_specific_paper = []
                     for review in full_reviews['reviews']:
-                        if self.meta_reviews or not review['IS_META_REVIEW']:
+                        if self.exclude(review):
+                            continue
+                        if self.final_decision == 'only' and review.get('TITLE') == 'ICLR committee final decision':
+                            reviews_for_specific_paper.append(review['comments'])
+                        elif self.meta_reviews or not review['IS_META_REVIEW']:
                             reviews_for_specific_paper.append(review)
 
                     self.paper_reviews.append(reviews_for_specific_paper)
         return self.paper_reviews
 
+    """
+    :returns only the text of the reviews (comments attribute of the json)
+    """
     def read_reviews_only_text(self):
         for i, file in enumerate(self.files):
             with open(file) as json_file:
@@ -175,9 +253,15 @@ class DataLoader:
                 else:
                     reviews_for_specific_paper = []
                     for review in full_reviews['reviews']:
-                        if self.meta_reviews or not review['IS_META_REVIEW']:
-                            reviews_for_specific_paper.append(review['comments'])
-
+                        if self.exclude(review):
+                            continue
+                        if self.final_decision == 'only':
+                            if review.get('TITLE') == 'ICLR committee final decision':
+                                if not self.remove_duplicates or review['comments'] not in reviews_for_specific_paper:
+                                    reviews_for_specific_paper.append(review['comments'])
+                        elif self.meta_reviews or not review['IS_META_REVIEW']:
+                            if not self.remove_duplicates or review['comments'] not in reviews_for_specific_paper:
+                                reviews_for_specific_paper.append(review['comments'])
                     self.paper_reviews.append(reviews_for_specific_paper)
         return self.paper_reviews
 

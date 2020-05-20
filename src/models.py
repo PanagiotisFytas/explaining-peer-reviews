@@ -100,3 +100,46 @@ class AttentionClassifier(nn.Module):
         out = self.last_fc(out)
         out = torch.sigmoid(out)
         return out
+
+
+# this model is using 2 heads of attention
+class MultiheadClassifier(nn.Module):
+    def __init__(self, input_size=768, hidden_dimensions=[500], heads=1):
+        super(MultiheadClassifier, self).__init__()
+        self.hidden_size = hidden_dimensions
+        self.input_size = input_size
+        self.heads = heads
+        self.fc_layers = nn.ModuleList([])
+        layer_input = input_size*self.heads
+        for layer_out in hidden_dimensions:
+            self.fc_layers.append(nn.Linear(layer_input, layer_out))
+            layer_input = layer_out
+        self.last_fc = nn.Linear(layer_input, 1)
+        self.sigmoid = nn.Sigmoid()
+        self.activation= nn.Tanh()
+        # self.relu2 = nn.ReLU()
+        self.drop = nn.Dropout(0.2)
+        self.att_layers = nn.ModuleList([])
+        for _ in range(heads):
+            self.att_layers.append(nn.Linear(input_size, 1))
+
+    def forward(self, inp, lengths):
+        # seq, batch, embedding_dim = inp.shape
+        outs = []
+        for att in self.att_layers:
+            w_t_h = att(inp)
+            att = nn.functional.softmax(w_t_h, dim=1)
+            out = torch.bmm(att.transpose(1, 2), inp).view(-1, self.input_size)  # out should be batch_size x emb_size
+            outs.append(out)
+
+        out = torch.cat(outs, dim=1)
+
+        # out = self.relu(out)
+        for layer in self.fc_layers:
+            out = layer(out)
+            out = self.activation(out)
+            out = self.drop(out)
+
+        out = self.last_fc(out)
+        out = torch.sigmoid(out)
+        return out
