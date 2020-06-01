@@ -47,12 +47,13 @@ stopwords_kept = ['am', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have
 
 
 class DataLoader:
-    ROOT = pathlib.Path(__file__).parent.parent
+    # ROOT = pathlib.Path(__file__).parent.parent
+    DATA_ROOT = pathlob.path(os.environ['DATA'])
     # HEAD and TAIL are used for truncating the middle of the review
     HEAD = 128
     TAIL = 384
     MAXLEN = 512
-    SCIBERT_PATH = '/home/panagiotis/Documents/Imperial/PeerReviewClassification/vocabulary/scibert_scivocab_uncased'
+    SCIBERT_PATH = DATA_ROOT / 'scibert_scivocab_uncased'
 
     def __init__(self, device, full_reviews=False, meta_reviews=False, conference='iclr_2017',
                  model_class=BertModel, tokenizer_class=BertTokenizer, pretrained_weights='bert-base-cased',
@@ -90,9 +91,8 @@ class DataLoader:
         if pretrained_weights == 'scibert_scivocab_uncased':
             self.pretrained_weights = self.SCIBERT_PATH
             self.pretrained_weights_name = pretrained_weights
-        else:
-            self.pretrained_weights = pretrained_weights
-            self.pretrained_weights_name = pretrained_weights
+/home/panagiotis/Documents/Imperial/PeerReviewC/home/panagiotis/Documents/Imperial/PeerReviewClassification/vocabulary/home/panagiotis/Documents/Imperial/PeerReviewClassification/vocabularylassification/vocabulary            self.pretrained_weights = pretrained_weights
+            self.pretrained_weights_name/home/panagiotis/Documents/Imperial/PeerReviewClassification/vocabulary/home/panagiotis/Documents/Imperial/PeerReviewClassification/vocabulary= pretrained_weights
 
         self.truncate_policy = truncate_policy  # By default it truncates from right, i.e., the end of the review
         # https://stackoverflow.com/questions/58636587/how-to-use-bert-for-long-text-classification -
@@ -105,9 +105,9 @@ class DataLoader:
         self.model.eval()
 
         # get file names
-        train_path = self.ROOT / ('data/PeerRead/data/' + conference) / 'train/reviews/'
-        test_path = self.ROOT / ('data/PeerRead/data/' + conference) / 'test/reviews/'
-        dev_path = self.ROOT / ('data/PeerRead/data/' + conference) / 'dev/reviews/'
+        train_path = self.DATA_ROOT / ('PeerRead/data/' + conference) / 'train/reviews/'
+        test_path = self.DATA_ROOT / ('PeerRead/data/' + conference) / 'test/reviews/'
+        dev_path = self.DATA_ROOT / ('PeerRead/data/' + conference) / 'dev/reviews/'
 
         train_files = [os.path.join(train_path, file) for file in os.listdir(train_path) if file.endswith('.json')]
         test_files = [os.path.join(test_path, file) for file in os.listdir(test_path) if file.endswith('.json')]
@@ -116,7 +116,7 @@ class DataLoader:
         print(len(train_files), len(dev_files), len(test_files),
               len(train_files) / (len(train_files) + len(dev_files) + len(test_files)))
 
-        self.files = train_files + test_files + dev_files
+        self.files = test_files + dev_files + train_files
 
         # There is a 0.8-0.1-0.1 split on the data. I am merging the data so we can decide on a different split.
         print(self.files)
@@ -128,7 +128,7 @@ class DataLoader:
         self.labels = []
 
         # path for saving embeddings matrices
-        self.path = self.ROOT / 'data/embeddings/' / self.conference / 'pre_trained' / self.get_dir_name()
+        self.path = self.DATA_ROOT / 'embeddings/' / self.conference / 'pre_trained' / self.get_dir_name()
 
     def get_dir_name(self):
         if self.final_decision == 'include':
