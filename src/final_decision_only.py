@@ -5,17 +5,19 @@ from DataLoader import DataLoader
 import numpy as np
 from helper_functions import training_loop, cross_validation_metrics
 from models import AttentionClassifier
+import pathlib
+import os
 
 
+device_idx = input("GPU: ")
 GPU = True
-device_idx = 0
 if GPU:
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda:" + device_idx if torch.cuda.is_available() else "cpu")
 else:
     device = torch.device("cpu")
 print(device)
 
-cross_validation = False
+cross_validation = True
 
 data_loader = DataLoader(device=device,
                          truncate_policy='right',
@@ -96,4 +98,7 @@ else:
 
     training_loop(data, test_data, model, device, optimizer, loss_fn, epochs=epochs, batch_size=batch_size)
 
-    torch.save(model, 'final_decision_only.pt')
+    model_path = DataLoader.DATA_ROOT / 'final_decision_only'
+    model_path.mkdir(parents=True, exist_ok=True)
+
+    torch.save(model, model_path / 'model.pt')

@@ -37,6 +37,12 @@ Each review has the following fields (the numbers are counters):
         every reviews that is not a meta review has a title and date
 
 '''
+try:
+    stopwords_en = stopwords.words('english')
+except LookupError:
+    nltk.download('stopwords')
+    stopwords_en = stopwords.words('english')
+
 stopwords_en = stopwords.words('english')
 stopwords_kept = ['am', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'having', 'do',
                   'does', 'did', 'doing', 'no', 'nor', 'not', 'can', 'will', 'don', "don't", 'should', "should've",
@@ -48,12 +54,12 @@ stopwords_kept = ['am', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have
 
 class DataLoader:
     # ROOT = pathlib.Path(__file__).parent.parent
-    DATA_ROOT = pathlob.path(os.environ['DATA'])
+    DATA_ROOT = pathlib.Path(os.environ['DATA'])
     # HEAD and TAIL are used for truncating the middle of the review
     HEAD = 128
     TAIL = 384
     MAXLEN = 512
-    SCIBERT_PATH = DATA_ROOT / 'scibert_scivocab_uncased'
+    SCIBERT_PATH = str(DATA_ROOT / 'scibert_scivocab_uncased')
 
     def __init__(self, device, full_reviews=False, meta_reviews=False, conference='iclr_2017',
                  model_class=BertModel, tokenizer_class=BertTokenizer, pretrained_weights='bert-base-cased',
@@ -91,8 +97,9 @@ class DataLoader:
         if pretrained_weights == 'scibert_scivocab_uncased':
             self.pretrained_weights = self.SCIBERT_PATH
             self.pretrained_weights_name = pretrained_weights
-/home/panagiotis/Documents/Imperial/PeerReviewC/home/panagiotis/Documents/Imperial/PeerReviewClassification/vocabulary/home/panagiotis/Documents/Imperial/PeerReviewClassification/vocabularylassification/vocabulary            self.pretrained_weights = pretrained_weights
-            self.pretrained_weights_name/home/panagiotis/Documents/Imperial/PeerReviewClassification/vocabulary/home/panagiotis/Documents/Imperial/PeerReviewClassification/vocabulary= pretrained_weights
+        else:
+            self.pretrained_weights = pretrained_weights
+            self.pretrained_weights_name = pretrained_weights
 
         self.truncate_policy = truncate_policy  # By default it truncates from right, i.e., the end of the review
         # https://stackoverflow.com/questions/58636587/how-to-use-bert-for-long-text-classification -
@@ -119,7 +126,7 @@ class DataLoader:
         self.files = test_files + dev_files + train_files
 
         # There is a 0.8-0.1-0.1 split on the data. I am merging the data so we can decide on a different split.
-        print(self.files)
+        # print(self.files)
         # Peer reviews from paper
         self.paper_reviews = []
         # self.read_full_reviews()
@@ -338,9 +345,10 @@ class DataLoader:
 
 
 if __name__ == '__main__':
+    device_idx = input("GPU: ")
     GPU = True
     if GPU:
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        device = torch.device("cuda:" + device_idx if torch.cuda.is_available() else "cpu")
     else:
         device = torch.device("cpu")
     print(device)
