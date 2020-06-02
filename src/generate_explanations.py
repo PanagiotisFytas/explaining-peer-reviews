@@ -54,7 +54,7 @@ emb_number_of_reviews = torch.tensor([len(reviews) for reviews in embeddings_inp
 embeddings_input = rnn.pad_sequence(embeddings_input, batch_first=True).to(device)  # pad the reviews to form a tensor
 labels = data_loader.read_labels().to(device)
 
-valid_size = 0.2
+valid_size = 0.1
 
 num_train = len(text_input)
 indices = list(range(num_train))
