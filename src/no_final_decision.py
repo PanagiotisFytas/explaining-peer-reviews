@@ -82,7 +82,7 @@ else:
                                 hidden_dimensions=hidden_dimensions,
                                 heads=heads)
     shuffle = False
-    valid_size = 0.2
+    valid_size = 0.1
     print(embeddings_input.shape)
 
     num_train = embeddings_input.shape[0]

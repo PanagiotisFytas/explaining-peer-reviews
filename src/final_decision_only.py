@@ -25,6 +25,7 @@ data_loader = DataLoader(device=device,
                          allow_empty='False',
                          pretrained_weights='scibert_scivocab_uncased',
                          remove_duplicates=True,
+                         remove_stopwords=False
                          )
 
 try:
@@ -45,7 +46,7 @@ _, _, embedding_dimension = embeddings_input.shape
 epochs = 500
 batch_size = 100  # 30
 lr = 0.0001
-hidden_dimensions = [1500, 700, 300]
+hidden_dimensions = [128, 64] # [1500, 700, 300]
 
 if cross_validation:
     network = AttentionClassifier
@@ -69,7 +70,7 @@ else:
     # hold-one-out split
     model = AttentionClassifier(input_size=embedding_dimension, hidden_dimensions=hidden_dimensions)
     shuffle = False
-    valid_size = 0.2
+    valid_size = 0.1
     print(embeddings_input.shape)
 
     num_train = embeddings_input.shape[0]
