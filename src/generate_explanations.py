@@ -9,7 +9,7 @@ import pickle
 
 
 # final_decision = 'only'
-final_decision = 'exclude',
+final_decision = 'exclude'
 if final_decision == 'only':
     clf_to_explain = 'final_decision_only'
 else:
@@ -37,13 +37,12 @@ print(device)
 
 # Load Data
 data_loader = DataLoader(device=device,
-                         truncate_policy='right',
                          final_decision=final_decision,
-                         allow_empty='False',
+                         allow_empty=False,
+                         truncate_policy='right',
                          pretrained_weights='scibert_scivocab_uncased',
                          remove_duplicates=True,
-                         remove_stopwords=False
-                         )
+                         remove_stopwords=False)
 
 data_loader.model.to(device)
 
@@ -114,7 +113,7 @@ predictions = model(test_embeddings_input, None)
 preds = (predictions.view(-1) >= 0.5).to(device='cpu', dtype=torch.int)
 targets = (test_labels >= 0.5).to(device='cpu', dtype=torch.int)
 
-accuracy = (preds == targets).sum() * (1 / 85)
+accuracy = (preds == targets).sum() * (1 / len(test_idx))
 print('Accuracy on test set: ', accuracy)
 
 

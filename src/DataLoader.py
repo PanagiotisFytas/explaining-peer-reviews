@@ -83,6 +83,7 @@ class DataLoader:
         self.meta_reviews = meta_reviews
         self.final_decision = final_decision
         if final_decision not in ['include', 'exclude', 'only']:
+            print(final_decision)
             raise Exception('Wrong final_decision value')
         self.allow_empty = allow_empty
         self.conference = conference
