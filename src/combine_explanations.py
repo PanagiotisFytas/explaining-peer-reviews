@@ -4,11 +4,13 @@ from DataLoader import DataLoader
 
 
 cols = ['Words', 'Mean', '#Total', '#Positive', '#Neg', 'PosMean', 'NegMean']
-final_decision = 'only'
+# final_decision = 'only'
+final_decision = 'exclude'
 if final_decision == 'only':
     clf_to_explain = 'final_decision_only'
 else:
     clf_to_explain = 'no_final_decision'
+
 
 # paths
 path = DataLoader.DATA_ROOT / clf_to_explain
@@ -45,31 +47,32 @@ class WordMetrics:
                             columns=cols)
 
 
-indexes = range(0, 50)
+if __name__ == '__main__':
+    indexes = range(0, 42)
 
-# combine all explanations
-word_metrics_acc = {}
+    # combine all explanations
+    word_metrics_acc = {}
 
-for idx in indexes:
-    exp = pickle.load(open(path / ('explanation' + str(idx) + '.p'), 'rb'))
-    exp_list = exp.as_list()
-    for word, importance in exp_list:
-        if word.lower() in word_metrics_acc:
-            word_metrics_acc[word.lower()].add(importance)
-        else:
-            word_metrics_acc[word.lower()] = WordMetrics(word)
-            word_metrics_acc[word.lower()].add(importance)
+    for idx in indexes:
+        exp = pickle.load(open(path / ('explanation' + str(idx) + '.p'), 'rb'))
+        exp_list = exp.as_list()
+        for word, importance in exp_list:
+            if word.lower() in word_metrics_acc:
+                word_metrics_acc[word.lower()].add(importance)
+            else:
+                word_metrics_acc[word.lower()] = WordMetrics(word)
+                word_metrics_acc[word.lower()].add(importance)
 
-# to dataframe for printing
-combined_words = pd.DataFrame(columns=cols)
+    # to dataframe for printing
+    combined_words = pd.DataFrame(columns=cols)
 
-for metric in word_metrics_acc.values():
-    combined_words = combined_words.append(metric.to_df(),  ignore_index=True)
+    for metric in word_metrics_acc.values():
+        combined_words = combined_words.append(metric.to_df(),  ignore_index=True)
 
 
-# combined_words = combined_words.sort_values(['#Total', 'Mean'], ascending=[False, False])
-abs_df = combined_words.copy()
-abs_df['Mean'] = abs_df['Mean'].abs()
-combined_words = combined_words.reindex(abs_df.sort_values('Mean', ascending=False).index)
-with pd.option_context('display.max_rows', None, 'display.max_columns', None):
-    print(combined_words)
+    # combined_words = combined_words.sort_values(['#Total', 'Mean'], ascending=[False, False])
+    abs_df = combined_words.copy()
+    abs_df['Mean'] = abs_df['Mean'].abs()
+    combined_words = combined_words.reindex(abs_df.sort_values('Mean', ascending=False).index)
+    with pd.option_context('display.max_rows', None, 'display.max_columns', None):
+        print(combined_words)

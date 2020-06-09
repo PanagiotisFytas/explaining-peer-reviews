@@ -78,9 +78,9 @@ class Metrics:
         # F1: {1:.2f}
         # '''.format(self.precision, self.recall, self.f1) + self.report.__str__()
         txt = '''
-        Accuracy:    {0:.2f}
-        Macro F1:    {1:.2f}
-        Weighted F1: {2:.2f}
+        Accuracy:    {0:.4f}
+        Macro F1:    {1:.4f}
+        Weighted F1: {2:.4f}
         '''.format(self.report['accuracy'], self.report['macro avg']['f1-score'],
                    self.report['weighted avg']['f1-score'])
         return txt
@@ -202,7 +202,7 @@ def training_loop(data, test_data, model, device, optimizer, loss_fn, epochs=100
             print('Precision on test set: ', precision_score(targets.numpy(), preds.numpy()))
             print('Recall on test set: ', recall_score(targets, preds))
             print('F1 on test set: ', f1_score(targets, preds))
-            print('Report:\n', classification_report(targets, preds))
+            print('Report:\n', classification_report(targets, preds, digits=4))
             print('-----------------')
             # predictions = model(test_data).squeeze(1)
             # print('RMSE on test set: ', rmse(predictions, test_labels))

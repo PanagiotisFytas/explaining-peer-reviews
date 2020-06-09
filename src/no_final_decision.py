@@ -14,7 +14,10 @@ if GPU:
 else:
     device = torch.device("cpu")
 print(device)
-cross_validation = False
+
+# cross_validation = False
+cross_validation = True
+
 
 data_loader = DataLoader(device=device,
                          final_decision='exclude',
@@ -51,7 +54,7 @@ labels = data_loader.read_labels().to(device)
 
 _, _, embedding_dimension = embeddings_input.shape
 
-epochs = 200
+epochs = 500
 batch_size = 120  # 100
 lr = 0.0001
 hidden_dimensions = [128, 64] # [1500, 700, 300]
@@ -69,7 +72,7 @@ if cross_validation:
     loss_fn = nn.BCELoss
     data = [embeddings_input, number_of_reviews, labels]
     cross_validation_metrics(network, network_params, optimizer, loss_fn, lr,
-                             epochs, batch_size, device, data, k=5, shuffle=True)
+                             epochs, batch_size, device, data, k=10, shuffle=True)
     # # dataset = CustomDataset(embeddings_input, number_of_reviews, labels)
     # dataset = Dataset({'inp': embeddings_input, 'lengths': number_of_reviews}, labels)
     # # X_dict = {'inp': embeddings_input, 'lengths': number_of_reviews}
@@ -114,4 +117,4 @@ else:
     model_path = DataLoader.DATA_ROOT / 'no_final_decision'
     model_path.mkdir(parents=True, exist_ok=True)
 
-    torch.save(model, model_path / 'model.pt')
+    # torch.save(model, model_path / 'model.pt')

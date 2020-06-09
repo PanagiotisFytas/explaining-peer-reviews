@@ -17,7 +17,9 @@ else:
     device = torch.device("cpu")
 print(device)
 
-cross_validation = True
+cross_validation = False
+# cross_validation = True
+
 
 data_loader = DataLoader(device=device,
                          truncate_policy='right',
@@ -25,7 +27,7 @@ data_loader = DataLoader(device=device,
                          allow_empty='False',
                          pretrained_weights='scibert_scivocab_uncased',
                          remove_duplicates=True,
-                         remove_stopwords=False
+                         remove_stopwords=True
                          )
 
 try:
@@ -102,4 +104,4 @@ else:
     model_path = DataLoader.DATA_ROOT / 'final_decision_only'
     model_path.mkdir(parents=True, exist_ok=True)
 
-    torch.save(model, model_path / 'model.pt')
+    # torch.save(model, model_path / 'model.pt')
