@@ -62,11 +62,10 @@ class DataLoader:
     SCIBERT_PATH = str(DATA_ROOT / 'scibert_scivocab_uncased')
 
     def __init__(self, device, full_reviews=False, meta_reviews=False, conference='iclr_2017',
-                 model_class=BertModel, tokenizer_class=BertTokenizer, pretrained_weights='bert-base-cased',
+                 model_class=BertModel, tokenizer_class=BertTokenizer, pretrained_weights='bert-base-uncased',
                  truncate_policy='right', final_decision='include', allow_empty=True, remove_duplicates=True,
                  remove_stopwords=False):
         """
-
         :param device: 'cuda' or 'cpu'
         :param full_reviews:
         :param meta_reviews:
@@ -345,6 +344,89 @@ class DataLoader:
         return self.labels
 
 
+class PerReviewDataLoader(DataLoader):
+    BATCH_SIZE = 200
+    def __init__(self, *args, **kwargs):
+        super(PerReviewDataLoader, self, *args, **kwargs).__init__()
+        self.path = self.DATA_ROOT / 'per_review_embeddings/' / self.conference / 'pre_trained' / self.get_dir_name()
+        self.recommendation_scores = []
+
+    def write_embeddings_to_file(self):
+        print(self.path)
+        self.path.mkdir(parents=True, exist_ok=True)
+        for idx, reviews in enumerate(self.embeddings_from_reviews):
+            torch.save(reviews, self.path / ('review_' + str(idx) + '.pt'))
+        
+    def write_scores_to_file(self):
+        print(self.path)
+        self.path.mkdir(parents=True, exist_ok=True)
+        torch.save(self.recommendation_scores, self.path / ('recommendation_scores.pt'))
+
+    def read_embeddigns_from_file(self):
+        files = [os.path.join(self.path, file) for file in os.listdir(self.path) if file.endswith('.pt') and 'review_' in file]
+        # natural ordering sort so when I keep the order of the papers from PeerRead. This preserves the order for
+        # reading the labels.
+        files.sort(key=natural_sort_key)
+        for file in files:
+            self.embeddings_from_reviews.append(torch.load(file))
+        return self.embeddings_from_reviews
+
+    def read_scores_from_file(self):
+        file = self.path / ('recommendation_scores.pt')
+        self.recommendation_scores = torch.load(file)
+        return self.recommendation_scores
+    
+    def exclude(self, review):
+        # exclude empty reviews and final decision if specified
+        return (not self.allow_empty and not review['comments'])\
+               or ('RECOMMENDATION' not in review)\
+               or (self.final_decision == 'exclude' and review.get('TITLE') == 'ICLR committee final decision')
+
+    """
+    :returns only the text of the reviews (comments attribute of the json)
+    """
+    def read_reviews_only_text(self):
+        for i, file in enumerate(self.files):
+            with open(file) as json_file:
+                full_reviews = json.load(json_file)
+                for review in full_reviews['reviews']:
+                    if self.exclude(review):
+                        continue
+                    if self.final_decision == 'only':
+                        raise Exception('Final decisions should be excluded from this data loader')
+                    elif self.meta_reviews or not review['IS_META_REVIEW']:
+                        if not self.remove_duplicates or review['comments'] not in reviews_for_specific_paper:
+                            self.paper_reviews.append(review['comments'])
+                            self.recommendation_scores.append(review['RECOMMENDATION'])
+        return self.paper_reviews, self.recommendation_scores
+    
+    def _get_full_review_stats(self):
+        pass
+
+    def read_scores(self):
+        for i, file in enumerate(self.files):
+            with open(file) as json_file:
+                full_reviews = json.load(json_file)
+            self.recommendation_scores.append(full_reviews['accepted'])
+        self.recommendation_scores = torch.tensor(self.recommendation_scores, dtype=torch.float)
+        return self.recommendation_scores
+
+    def _create_embeddings(self):
+        self.model.to(self.device)
+        cnt = 0
+        N = len(self.paper_reviews)
+        print('Total Len: ', N)
+        for i in range(0, N, self.BATCH_SIZE):
+            reviews = self.paper_reviews[i:i+batch_size]
+            embeddings = self.reviews_to_embeddings(reviews)
+            self.embeddings_from_reviews.append(embeddings)
+            cnt += 1
+            print(cnt)
+        self.embeddings_from_reviews = torch.cat(self.embeddings_from_reviews)
+        print('Shape: ', self.embeddings_from_reviews.shape)
+        return self.embeddings_from_reviews
+
+
 if __name__ == '__main__':
     device_idx = input("GPU: ")
     GPU = True
@@ -376,4 +458,3 @@ if __name__ == '__main__':
 # #
 # # get_full_review_stats(REVIEWS)
 #
-
