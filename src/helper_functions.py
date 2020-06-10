@@ -209,6 +209,116 @@ def training_loop(data, test_data, model, device, optimizer, loss_fn, epochs=100
 
 
 
+def cross_validation_metrics_scores(network, network_params, optimizer_class, loss_fn_class, lr, epochs, batch_size, device,
+                                    data, k=5, gru_model=False, shuffle=True):
+    input, lengths, labels = data
+    training_parameters = {'epochs': epochs, 'batch_size': batch_size}
+
+    num_samples = input.shape[0]
+    indices = list(range(num_samples))
+
+    if shuffle:
+        np.random.shuffle(indices)
+
+    cv_metrics = []
+    start = 0
+    end = int(np.floor(1 / k * num_samples))
+    samples_in_fold = end - start
+    for i in range(k):
+        print('Fold: ', i+1, ' Start: ', start, ' End: ', end)
+        model = network(**network_params)
+        model.to(device)
+        optimizer = optimizer_class(model.parameters(), lr=lr)
+        loss_fn = loss_fn_class()
+
+        valid_idx = indices[start:end]
+        train_idx = np.append(indices[:start], indices[end:])
+
+        valid_input = input[valid_idx, :]
+        valid_length = lengths[valid_idx]
+        valid_labels = labels[valid_idx]
+
+        train_input = input[train_idx, :]
+        train_length = lengths[train_idx]
+        train_labels = labels[train_idx]
+
+        train_data = [train_input, train_length, train_labels]
+        valid_data = [valid_input, valid_length, valid_labels]
+        training_loop_scores(train_data, valid_data, model, device, optimizer, loss_fn, **training_parameters,
+                             gru_model=gru_model, verbose=False)
+        metrics = Metrics(valid_data, model)
+        print(metrics)
+        cv_metrics.append(metrics)
+
+        start = end
+        end = min(end + samples_in_fold, num_samples)
+
+    print(sum(cv_metrics))
+    print(sum(cv_metrics)/k)
+
+
+def training_loop_scores(data, test_data, model, device, optimizer, loss_fn, epochs=100, batch_size=64, gru_model=False,
+                  verbose=True):
+    embeddings, lengths, labels = data
+    test_embeddings, test_lengths, test_labels = test_data
+    N, input_size = embeddings.shape
+    test_N, _ = test_embeddings.shape
+    for epoch in range(1, epochs + 1):
+        permutation = torch.randperm(N)
+        model.train()
+        for i in range(0, N, batch_size):
+            optimizer.zero_grad()
+
+            indices = permutation[i:i + batch_size]
+            batch_y = labels[indices]
+            batch_x = embeddings[indices, :]
+            # for data augmentation
+            # _, seq_len, _ = batch_x.shape
+            # seq_permutation = torch.randperm(seq_len)
+            # batch_x = batch_x[:, seq_permutation, :]
+            batch_x.to(device)
+            batch_y.to(device)
+
+            batch_lengths = lengths[indices]
+            batch_lengths.to(device)
+
+            preds = model(batch_x, batch_lengths).squeeze(1)
+            loss = loss_fn(preds, batch_y)
+            train_loss = loss.item()
+            loss.backward()
+            if gru_model:
+                model.hx = model.hx.detach()
+            optimizer.step()
+
+        if verbose:
+            model.eval()
+
+            predictions = model(embeddings, lengths)
+            preds = predictions.view(-1) >= 0.5
+            targets = labels >= 0.5
+
+            accuracy = (preds == targets).sum() * (1 / N)
+            print('-----EPOCH ' + str(epoch) + '-----')
+            print('Accuracy on train set: ', accuracy)
+
+            predictions = model(test_embeddings, test_lengths)
+            preds = (predictions.view(-1) >= 0.5).to(device='cpu', dtype=torch.int)
+            targets = (test_labels >= 0.5).to(device='cpu', dtype=torch.int)
+
+            # print(preds.shape)
+            # print(targets.shape)
+            accuracy = (preds == targets).sum() * (1 / test_N)
+            print('Accuracy on test set: ', accuracy)
+            print('Confusion on test set: ', confusion_matrix(targets.numpy(), preds.numpy()))
+            print('Precision on test set: ', precision_score(targets.numpy(), preds.numpy()))
+            print('Recall on test set: ', recall_score(targets, preds))
+            print('F1 on test set: ', f1_score(targets, preds))
+            print('Report:\n', classification_report(targets, preds, digits=4))
+            print('-----------------')
+            # predictions = model(test_data).squeeze(1)
+            # print('RMSE on test set: ', rmse(predictions, test_labels))
+
+
 
 #
 # class CustomDataset(torch.utils.data.Dataset):

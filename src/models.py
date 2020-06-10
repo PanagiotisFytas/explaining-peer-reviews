@@ -102,7 +102,6 @@ class AttentionClassifier(nn.Module):
         return out
 
 
-# this model is using 2 heads of attention
 class MultiheadClassifier(nn.Module):
     def __init__(self, input_size=768, hidden_dimensions=[500], heads=1):
         super(MultiheadClassifier, self).__init__()
@@ -133,6 +132,36 @@ class MultiheadClassifier(nn.Module):
             outs.append(out)
 
         out = torch.cat(outs, dim=1)
+
+        # out = self.relu(out)
+        for layer in self.fc_layers:
+            out = layer(out)
+            out = self.activation(out)
+            out = self.drop(out)
+
+        out = self.last_fc(out)
+        out = torch.sigmoid(out)
+        return out
+
+
+class ScoreClassifier(nn.Module):
+    def __init__(self, input_size=768, hidden_dimensions=[500]):
+        super(ScoreClassifier, self).__init__()
+        self.hidden_size = hidden_dimensions
+        self.input_size = input_size
+        self.fc_layers = nn.ModuleList([])
+        layer_input = input_size
+        for layer_out in hidden_dimensions:
+            self.fc_layers.append(nn.Linear(layer_input, layer_out))
+            layer_input = layer_out
+        self.last_fc = nn.Linear(layer_input, 1)
+        self.sigmoid = nn.Sigmoid()
+        self.activation= nn.Tanh()
+        # self.relu2 = nn.ReLU()
+        self.drop = nn.Dropout(0.1)
+
+    def forward(self, inp, lengths):
+        out = inp
 
         # out = self.relu(out)
         for layer in self.fc_layers:

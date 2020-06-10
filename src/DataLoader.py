@@ -347,7 +347,7 @@ class DataLoader:
 class PerReviewDataLoader(DataLoader):
     BATCH_SIZE = 200
     def __init__(self, *args, **kwargs):
-        super(PerReviewDataLoader, self, *args, **kwargs).__init__()
+        super(PerReviewDataLoader, self).__init__(*args, **kwargs)
         self.path = self.DATA_ROOT / 'per_review_embeddings/' / self.conference / 'pre_trained' / self.get_dir_name()
         self.recommendation_scores = []
 
@@ -368,7 +368,10 @@ class PerReviewDataLoader(DataLoader):
         # reading the labels.
         files.sort(key=natural_sort_key)
         for file in files:
-            self.embeddings_from_reviews.append(torch.load(file))
+            self.embeddings_from_reviews.append(torch.load(file).view(1, -1))
+        print('Shape: ', self.embeddings_from_reviews[0].shape)
+        self.embeddings_from_reviews = torch.cat(self.embeddings_from_reviews)
+        print('Shape: ', self.embeddings_from_reviews.shape)
         return self.embeddings_from_reviews
 
     def read_scores_from_file(self):
@@ -389,6 +392,7 @@ class PerReviewDataLoader(DataLoader):
         for i, file in enumerate(self.files):
             with open(file) as json_file:
                 full_reviews = json.load(json_file)
+                reviews_for_specific_paper = []
                 for review in full_reviews['reviews']:
                     if self.exclude(review):
                         continue
@@ -396,6 +400,7 @@ class PerReviewDataLoader(DataLoader):
                         raise Exception('Final decisions should be excluded from this data loader')
                     elif self.meta_reviews or not review['IS_META_REVIEW']:
                         if not self.remove_duplicates or review['comments'] not in reviews_for_specific_paper:
+                            reviews_for_specific_paper.append(review['comments'])
                             self.paper_reviews.append(review['comments'])
                             self.recommendation_scores.append(review['RECOMMENDATION'])
         return self.paper_reviews, self.recommendation_scores
@@ -404,10 +409,6 @@ class PerReviewDataLoader(DataLoader):
         pass
 
     def read_scores(self):
-        for i, file in enumerate(self.files):
-            with open(file) as json_file:
-                full_reviews = json.load(json_file)
-            self.recommendation_scores.append(full_reviews['accepted'])
         self.recommendation_scores = torch.tensor(self.recommendation_scores, dtype=torch.float)
         return self.recommendation_scores
 
@@ -417,7 +418,7 @@ class PerReviewDataLoader(DataLoader):
         N = len(self.paper_reviews)
         print('Total Len: ', N)
         for i in range(0, N, self.BATCH_SIZE):
-            reviews = self.paper_reviews[i:i+batch_size]
+            reviews = self.paper_reviews[i:i+self.BATCH_SIZE]
             embeddings = self.reviews_to_embeddings(reviews)
             self.embeddings_from_reviews.append(embeddings)
             cnt += 1
