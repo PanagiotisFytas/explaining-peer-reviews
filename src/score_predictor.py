@@ -14,8 +14,8 @@ else:
     device = torch.device("cpu")
 print(device)
 
-# cross_validation = False
-cross_validation = True
+cross_validation = False
+# cross_validation = True
 
 binary_classification = True
 
@@ -105,7 +105,7 @@ else:
 
     training_loop_scores(data, test_data, model, device, optimizer, loss_fn, epochs=epochs, batch_size=batch_size)
 
-    # model_path = DataLoader.DATA_ROOT / 'no_final_decision'
-    # model_path.mkdir(parents=True, exist_ok=True)
+    model_path = PerReviewDataLoader.DATA_ROOT / 'per_review_classifier'
+    model_path.mkdir(parents=True, exist_ok=True)
 
-    # torch.save(model, model_path / 'model.pt')
+    torch.save(model, model_path / 'model.pt')

@@ -90,7 +90,7 @@ def model_wrapper(perturbations):
         cnt += 1
         rev = perturbation.split(SEP)
         embeddings.append(data_loader.reviews_to_embeddings(rev))
-    embeddings.append(embeddings_input[0])
+    embeddings.append(embeddings_input[0]) # add so it can be padded to the max possible size
     embeddings = rnn.pad_sequence(embeddings, batch_first=True).to(device)  # pad the reviews to form a tensor
     embeddings = embeddings[:-1]
     preds = model(embeddings, None)

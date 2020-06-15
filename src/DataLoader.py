@@ -403,7 +403,7 @@ class PerReviewDataLoader(DataLoader):
                             reviews_for_specific_paper.append(review['comments'])
                             self.paper_reviews.append(review['comments'])
                             self.recommendation_scores.append(review['RECOMMENDATION'])
-        return self.paper_reviews, self.recommendation_scores
+        return self.paper_reviews
     
     def _get_full_review_stats(self):
         pass
