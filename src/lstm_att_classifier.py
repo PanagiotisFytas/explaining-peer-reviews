@@ -18,8 +18,8 @@ else:
     device = torch.device("cpu")
 print(device)
 
-# cross_validation = False
-cross_validation = True
+cross_validation = False
+# cross_validation = True
 
 
 data_loader = LSTMEmbeddingLoader(device=device,
@@ -52,6 +52,7 @@ hidden_dimensions = [128, 64] # [128, 64] # [1500, 700, 300]
 lstm_hidden_dimension = 300 # 500
 num_layers = 1  # Layers in the RN. Having more than 1 layer probably makes interpretability worst by combining more tokens into hiddent embs
 bidirectional = False
+cell_type = 'GRU'
 
 if cross_validation:
     network = LSTMAttentionClassifier
@@ -61,7 +62,8 @@ if cross_validation:
         'lstm_hidden_size': lstm_hidden_dimension,
         'num_layers': num_layers,
         'bidirectional': bidirectional,
-        'hidden_dimensions': hidden_dimensions
+        'hidden_dimensions': hidden_dimensions,
+        'cell_type': cell_type
     }
     optimizer = torch.optim.Adam
     lr = lr
@@ -82,7 +84,8 @@ else:
                                     lstm_hidden_size=lstm_hidden_dimension,
                                     num_layers=num_layers,
                                     bidirectional=bidirectional,
-                                    hidden_dimensions=hidden_dimensions
+                                    hidden_dimensions=hidden_dimensions,
+                                    cell_type=cell_type
                                    )
     shuffle = False
     valid_size = 0.1

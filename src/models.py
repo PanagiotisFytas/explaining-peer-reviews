@@ -245,16 +245,26 @@ class ScoreClassifier(nn.Module):
 #         return logits
 
 class LSTMAttentionClassifier(nn.Module):
-    def __init__(self, device, input_size=768, lstm_hidden_size=500, num_layers=1, bidirectional=False, hidden_dimensions=[500]):
+    def __init__(self, device, input_size=768, lstm_hidden_size=500, num_layers=1, bidirectional=False, hidden_dimensions=[500],
+                 cell_type='GRU'):
         super(LSTMAttentionClassifier, self).__init__()
         self.device = device
-        self.gru = nn.GRU(input_size=input_size, hidden_size=lstm_hidden_size, num_layers=num_layers, dropout=0.5,
-                          batch_first=True, bidirectional=bidirectional)
+        self.cell_type = cell_type
+        if cell_type == 'GRU':
+            self.rnn = nn.GRU(input_size=input_size, hidden_size=lstm_hidden_size, num_layers=num_layers, dropout=0.5,
+                              batch_first=True, bidirectional=bidirectional)
+            self.hx = None
+        elif cell_type == 'LSTM':
+            self.rnn = nn.LSTM(input_size=input_size, hidden_size=lstm_hidden_size, num_layers=num_layers, dropout=0.5,
+                                batch_first=True, bidirectional=bidirectional)
+            self.hx = None
+            self.cx = None
+        else:
+            raise Exception('Invalid RNN type')
         self.bidirectional = bidirectional
         self.lstm_hidden_size = lstm_hidden_size
         self.num_layers = num_layers
         self.hidden_dimensions = hidden_dimensions
-        self.hx = None
         if self.bidirectional:
             self.directions = 2
         else:
@@ -280,8 +290,11 @@ class LSTMAttentionClassifier(nn.Module):
         # seq, batch, embedding_dim = inp.shape
         out = rnn.pack_padded_sequence(inp, lengths, enforce_sorted=False, batch_first=True)  # no ONNX exportability
         # out.to(device)
-        out, self.hx = self.gru(out)  # no hx input since no BPTT
-
+        if self.cell_type == 'GRU':
+            out, self.hx = self.rnn(out)  # no hx input since no BPTT
+        elif self.cell_type == 'LSTM':
+            out, (self.hx, self.cx) = self.rnn(out)
+    
         out, output_lengths = rnn.pad_packed_sequence(out, batch_first=True)
         
         mask = self.create_mask(output_lengths)
