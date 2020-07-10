@@ -147,14 +147,19 @@ def cross_validation_metrics(network, network_params, optimizer_class, loss_fn_c
 
 
 def training_loop(data, test_data, model, device, optimizer, loss_fn, epochs=100, batch_size=64, gru_model=False,
-                  verbose=True):
+                  verbose=True, return_losses=False):
     embeddings, lengths, labels = data
     test_embeddings, test_lengths, test_labels = test_data
     N, _seq_len, input_size = embeddings.shape
     test_N, _, _ = test_embeddings.shape
+    if return_losses:
+        train_losses = []
+        test_losses = []
     for epoch in range(1, epochs + 1):
         permutation = torch.randperm(N)
         model.train()
+        if return_losses:
+            train_losses_in_epoch = []
         for i in range(0, N, batch_size):
             optimizer.zero_grad()
 
@@ -174,10 +179,21 @@ def training_loop(data, test_data, model, device, optimizer, loss_fn, epochs=100
             preds = model(batch_x, batch_lengths).squeeze(1)
             loss = loss_fn(preds, batch_y)
             train_loss = loss.item()
+            if return_losses:
+                train_losses_in_epoch.append(train_loss)
             loss.backward()
             if gru_model:
                 model.hx = model.hx.detach()
             optimizer.step()
+
+        if return_losses:
+            model.eval()
+            test_preds = model(test_embeddings, test_lengths).squeeze(1)
+            test_loss = loss_fn(test_preds, test_labels)
+            test_loss = test_loss.item()
+            train_loss = np.array(train_losses_in_epoch).mean()
+            train_losses.append(train_loss)
+            test_losses.append(test_loss)
 
         if verbose:
             model.eval()
@@ -206,6 +222,10 @@ def training_loop(data, test_data, model, device, optimizer, loss_fn, epochs=100
             print('-----------------')
             # predictions = model(test_data).squeeze(1)
             # print('RMSE on test set: ', rmse(predictions, test_labels))
+    
+    if return_losses:
+        return train_losses, test_losses
+    
 
 
 
@@ -258,14 +278,19 @@ def cross_validation_metrics_scores(network, network_params, optimizer_class, lo
 
 
 def training_loop_scores(data, test_data, model, device, optimizer, loss_fn, epochs=100, batch_size=64, gru_model=False,
-                  verbose=True):
+                         verbose=True, return_losses=False):
     embeddings, lengths, labels = data
     test_embeddings, test_lengths, test_labels = test_data
     N, input_size = embeddings.shape
     test_N, _ = test_embeddings.shape
+    if return_losses:
+        train_losses = []
+        test_losses = []
     for epoch in range(1, epochs + 1):
         permutation = torch.randperm(N)
         model.train()
+        if return_losses:
+            train_losses_in_epoch = []
         for i in range(0, N, batch_size):
             optimizer.zero_grad()
 
@@ -285,10 +310,21 @@ def training_loop_scores(data, test_data, model, device, optimizer, loss_fn, epo
             preds = model(batch_x, batch_lengths).squeeze(1)
             loss = loss_fn(preds, batch_y)
             train_loss = loss.item()
+            if return_losses:
+                train_losses_in_epoch.append(train_loss)
             loss.backward()
             if gru_model:
                 model.hx = model.hx.detach()
             optimizer.step()
+
+        if return_losses:
+            model.eval()
+            test_preds = model(test_embeddings, test_lengths).squeeze(1)
+            test_loss = loss_fn(test_preds, test_labels)
+            test_loss = test_loss.item()
+            train_loss = np.array(train_losses_in_epoch).mean()
+            train_losses.append(test_loss)
+            test_losses.append(test_loss)
 
         if verbose:
             model.eval()
@@ -317,6 +353,11 @@ def training_loop_scores(data, test_data, model, device, optimizer, loss_fn, epo
             print('-----------------')
             # predictions = model(test_data).squeeze(1)
             # print('RMSE on test set: ', rmse(predictions, test_labels))
+    
+    if return_losses:
+        return train_losses, test_losses
+    
+
 
 
 

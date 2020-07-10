@@ -7,6 +7,7 @@ from helper_functions import natural_sort_key
 import sys
 import nltk
 from nltk.corpus import stopwords
+import spacy
 
 
 '''
@@ -63,7 +64,7 @@ class DataLoader:
 
     def __init__(self, device, full_reviews=False, meta_reviews=False, conference='iclr_2017',
                  model_class=BertModel, tokenizer_class=BertTokenizer, pretrained_weights='bert-base-uncased',
-                 truncate_policy='right', final_decision='include', allow_empty=True, remove_duplicates=True,
+                 truncate_policy='right', final_decision='include', allow_empty=True, remove_duplicates=True, 
                  remove_stopwords=False):
         """
         :param device: 'cuda' or 'cpu'
@@ -426,6 +427,180 @@ class PerReviewDataLoader(DataLoader):
         self.embeddings_from_reviews = torch.cat(self.embeddings_from_reviews)
         print('Shape: ', self.embeddings_from_reviews.shape)
         return self.embeddings_from_reviews
+
+
+class PreProcessor:
+    nlp = spacy.load('en_core_web_lg')
+    def __init__(self, lemmatise=True, lowercase=True, stopword_removal=True, punctuation_removal=True):
+        self.lemmatise = lemmatise
+        self.lowercase = lowercase
+        self.stopword_removal = stopword_removal
+        self.punctuation_removal = punctuation_removal
+        if self.stopword_removal:
+            self.stopwords = stopwords.words('english')
+        else:
+            self.stopwords = []
+
+    def preprocess(self, reviews):
+        processed_reviews = []
+        for review in reviews:
+            # for meta reviews:
+            review = review[0]
+            if self.lowercase:
+                review = review.lower()
+            if self.lemmatise:
+                review = [token.lemma_ for token in self.nlp.tokenizer(review)
+                          if (not self.punctuation_removal or not (token.is_punct or token.is_space))]
+            else:
+                review = [token.text for token in self.nlp.tokenizer(review)
+                          if (not self.punctuation_removal or not (token.is_punct or token.is_space))]
+            review = [word for word in review if word not in self.stopwords]
+            processed_reviews.append(review)
+            print(review)
+        return processed_reviews
+
+
+class LSTMEmbeddingLoader(DataLoader):
+    # ROOT = pathlib.Path(__file__).parent.parent
+    DATA_ROOT = pathlib.Path(os.environ['DATA'])
+    SCIBERT_PATH = str(DATA_ROOT / 'scibert_scivocab_uncased')
+    
+    def __init__(self, device, model_class=BertModel, tokenizer_class=BertTokenizer, conference='iclr_2017', 
+                 final_decision='only', pretrained_weights='bert-base-uncased', lemmatise=True, lowercase=True, 
+                 stopword_removal=True, punctuation_removal=True):
+        
+        self.meta_reviews = False
+        self.full_reviews = False
+        self.remove_duplicates = True
+        self.allow_empty = False
+
+        self.lemmatise = lemmatise
+        self.lowercase = lowercase
+        self.stopword_removal = stopword_removal
+        self.punctuation_removal = punctuation_removal
+        self.preprocessor = PreProcessor(lemmatise=lemmatise, lowercase=lowercase, stopword_removal=stopword_removal,
+                                         punctuation_removal=punctuation_removal)
+        
+        self.conference = conference
+        self.final_decision = final_decision
+
+        # Different transformer models options
+        self.model_class = model_class
+        self.tokenizer_class = tokenizer_class
+        if pretrained_weights == 'scibert_scivocab_uncased':
+            self.pretrained_weights = self.SCIBERT_PATH
+            self.pretrained_weights_name = pretrained_weights
+        else:
+            self.pretrained_weights = pretrained_weights
+            self.pretrained_weights_name = pretrained_weights
+
+        # Construct pretrained transformer model
+        # TODO there is a lowercasing probably
+        self.tokenizer = tokenizer_class.from_pretrained(self.pretrained_weights)
+        self.model = model_class.from_pretrained(self.pretrained_weights)
+        self.model.eval()
+
+        # get file names
+        train_path = self.DATA_ROOT / ('PeerRead/data/' + conference) / 'train/reviews/'
+        test_path = self.DATA_ROOT / ('PeerRead/data/' + conference) / 'test/reviews/'
+        dev_path = self.DATA_ROOT / ('PeerRead/data/' + conference) / 'dev/reviews/'
+
+        train_files = [os.path.join(train_path, file) for file in os.listdir(train_path) if file.endswith('.json')]
+        test_files = [os.path.join(test_path, file) for file in os.listdir(test_path) if file.endswith('.json')]
+        dev_files = [os.path.join(dev_path, file) for file in os.listdir(dev_path) if file.endswith('.json')]
+
+        print(len(train_files), len(dev_files), len(test_files),
+              len(train_files) / (len(train_files) + len(dev_files) + len(test_files)))
+
+        self.files = test_files + dev_files + train_files
+
+        # There is a 0.8-0.1-0.1 split on the data. I am merging the data so we can decide on a different split.
+        # print(self.files)
+        # Peer reviews from paper
+        self.paper_reviews = []
+        # self.read_full_reviews()
+        self.embeddings_from_reviews = []
+        self.device = device
+        self.labels = []
+
+        # path for saving embeddings matrices
+        self.path = self.DATA_ROOT / 'lstm_embeddings/' / self.conference / 'pre_trained' / self.get_dir_name()
+
+    def get_dir_name(self):
+        if self.final_decision == 'include':
+            ret = '_'.join([
+                self.model_class.__name__,
+                self.pretrained_weights_name
+            ])
+        else:
+            ret = '_'.join([
+                self.model_class.__name__,
+                self.pretrained_weights_name,
+                'final-decision-' + self.final_decision
+            ])
+        if self.lemmatise:
+            ret += '_lemmatise'
+        if self.lowercase:
+            ret += '_lowercase'
+        if self.stopword_removal:
+            ret += '_stopwrod_removal'
+        if self.punctuation_removal:
+            ret += '_punctuation_removal'
+        return ret
+
+    def reviews_to_embeddings(self, _):
+        raise Exception('Not Implemented')
+
+    def tokenised_review_to_embeddings(self, review):
+        batch_input_ids = self.tokenizer.batch_encode_plus(review, pad_to_max_length=True, return_tensors='pt')
+        for key, tensor in batch_input_ids.items():
+            batch_input_ids[key] = tensor.to(self.device)
+        with torch.no_grad():
+            review_embeddings = self.model(**batch_input_ids)
+
+        # --clear from GPU memory--
+        for tensor in batch_input_ids.values():
+            del tensor
+        embeddings = review_embeddings[1].cpu()
+        for emb in review_embeddings:
+            del emb
+        torch.cuda.empty_cache()
+        return embeddings
+        # -------------------------
+
+    def _create_embeddings(self):
+        self.model.to(self.device)
+        cnt = 0
+        for review in self.paper_reviews:
+            embeddings = self.tokenised_review_to_embeddings(review)
+            self.embeddings_from_reviews.append(embeddings)
+            cnt += 1
+            print(cnt)
+        return self.embeddings_from_reviews
+
+    def get_embeddings_from_reviews(self):
+        self.read_reviews_only_text()
+        self._get_full_review_stats()
+        self.paper_reviews = self.preprocessor.preprocess(self.paper_reviews)
+        return self._create_embeddings()
+
+    def write_embeddings_to_file(self):
+        # path = self.ROOT / 'data/embeddings/' / self.conference / 'pre_trained' / (self.model_class.__name__ + '_' +
+        #                                                                            self.pretrained_weights)
+        print(self.path)
+        self.path.mkdir(parents=True, exist_ok=True)
+        for idx, reviews in enumerate(self.embeddings_from_reviews):
+            torch.save(reviews, self.path / ('paper_' + str(idx) + '.pt'))
+
+    def read_embeddigns_from_file(self):
+        files = [os.path.join(self.path, file) for file in os.listdir(self.path) if file.endswith('.pt')]
+        # natural ordering sort so when I keep the order of the papers from PeerRead. This preserves the order for
+        # reading the labels.
+        files.sort(key=natural_sort_key)
+        for file in files:
+            self.embeddings_from_reviews.append(torch.load(file))
+        return self.embeddings_from_reviews
+
 
 
 if __name__ == '__main__':
