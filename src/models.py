@@ -287,6 +287,23 @@ class LSTMAttentionClassifier(nn.Module):
         return mask.unsqueeze(2).to(self.device, dtype=torch.int)
 
     def forward(self, inp, lengths):
+        # forward through the rnn and get the output of the rnn and the attention weights
+        attention, out = self.rnn_att_forward(inp, lengths)
+        # print(attention.shape)
+        # pool the output of the rnn using attention
+        out = torch.bmm(attention.transpose(1, 2), out).view(-1, self.lstm_hidden_size * self.directions)  # out should be batch_size x lstm_hidden_size
+        # print(out.shape)
+
+        for layer in self.fc_layers:
+            out = layer(out)
+            out = self.activation(out)
+            out = self.drop(out)
+
+        out = self.last_fc(out)
+        out = self.sigmoid(out)
+        return out
+    
+    def rnn_att_forward(self, inp, lengths):
         # seq, batch, embedding_dim = inp.shape
         out = rnn.pack_padded_sequence(inp, lengths, enforce_sorted=False, batch_first=True)  # no ONNX exportability
         # out.to(device)
@@ -306,16 +323,6 @@ class LSTMAttentionClassifier(nn.Module):
         # print(attention.shape)
         # calculate attention weights
         attention = nn.functional.softmax(attention, dim=1)
-        # print(attention.shape)
-        # pool the output of the rnn using attention
-        out = torch.bmm(attention.transpose(1, 2), out).view(-1, self.lstm_hidden_size * self.directions)  # out should be batch_size x lstm_hidden_size
-        # print(out.shape)
-
-        for layer in self.fc_layers:
-            out = layer(out)
-            out = self.activation(out)
-            out = self.drop(out)
-
-        out = self.last_fc(out)
-        out = self.sigmoid(out)
-        return out
+        
+        return attention, out
+        

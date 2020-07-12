@@ -45,8 +45,8 @@ print(embeddings_input.shape)
 labels = data_loader.read_labels().to(device)
 _, _, embedding_dimension = embeddings_input.shape
 
-epochs = 110 # 500
-batch_size = 30 # 100
+epochs = 100 # 110 # 500
+batch_size = 100 # 30
 lr = 0.0001
 hidden_dimensions = [128, 64] # [128, 64] # [1500, 700, 300]
 lstm_hidden_dimension = 300 # 500
@@ -71,12 +71,6 @@ if cross_validation:
     data = [embeddings_input, number_of_tokens, labels]
     cross_validation_metrics(network, network_params, optimizer, loss_fn, lr,
                              epochs, batch_size, device, data, k=5, shuffle=True)
-    # # dataset = CustomDataset(embeddings_input, number_of_reviews, labels)
-    # dataset = Dataset({'inp': embeddings_input, 'lengths': number_of_reviews}, labels)
-    # # X_dict = {'inp': embeddings_input, 'lengths': number_of_reviews}
-    # print(embeddings_input.shape, number_of_reviews.shape, labels.shape)
-    # net.fit(dataset, y=labels)
-    # preds = cross_val_predict(net, dataset, y=labels.to('cpu'), cv=5)
 else:
     # hold-one-out split
     model = LSTMAttentionClassifier(device=device, 
@@ -101,17 +95,17 @@ else:
     train_idx, test_idx = indices[split:], indices[:split]
 
     test_embeddings_input = embeddings_input[test_idx, :, :]
-    test_number_of_reviews = number_of_tokens[test_idx]
+    test_number_of_tokens = number_of_tokens[test_idx]
     test_labels = labels[test_idx]
 
     embeddings_input = embeddings_input[train_idx, :, :]
-    number_of_reviews = number_of_tokens[train_idx]
+    number_of_tokens = number_of_tokens[train_idx]
     labels = labels[train_idx]
 
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     loss_fn = nn.BCELoss()
-    data = [embeddings_input, number_of_reviews, labels]
-    test_data = [test_embeddings_input, test_number_of_reviews, test_labels]
+    data = [embeddings_input, number_of_tokens, labels]
+    test_data = [test_embeddings_input, test_number_of_tokens, test_labels]
 
     model.to(device)
 
@@ -130,7 +124,6 @@ else:
     plt.plot(test_losses, label='Test Loss')
     plt.legend()
     plt.savefig('/home/pfytas/losses.png')
-    # model_path = LSTMEmbeddingLoader.DATA_ROOT / 'lstm_att_classifier'
-    # model_path.mkdir(parents=True, exist_ok=True)
-
-    # torch.save(model, model_path / 'model.pt')
+    model_path = LSTMEmbeddingLoader.DATA_ROOT / 'lstm_att_classifier'
+    model_path.mkdir(parents=True, exist_ok=True)
+    torch.save(model, model_path / 'model.pt')
