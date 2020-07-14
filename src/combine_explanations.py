@@ -55,6 +55,28 @@ class WordMetrics:
                             columns=cols)
 
 
+class LSTMMetrics:
+    def __init__(self, word):
+        self.word = word
+        self.cnt = 0
+        self.sum = 0
+        self.mean = 0
+        self.cnt_pos = None
+        self.cnt_neg = None
+        self.sum_pos = None
+        self.sum_neg = None
+        self.mean_pos = None
+        self.mean_neg = None
+
+    def add(self, importance):
+        self.sum += importance
+        self.cnt += 1
+        self.mean = self.sum / self.cnt
+
+    def to_df(self):
+        return pd.DataFrame(data=[[self.word, self.mean, self.cnt, self.cnt_pos, self.cnt_neg, self.mean_pos, self.mean_neg]],
+                            columns=cols)
+
 def combine_explanation_in_matrix(binary=False):
     explanation_files = [os.path.join(path, file) for file in os.listdir(path) if file.endswith('.p') and 'explanation' in file]
     explanation_files.sort(key=natural_sort_key)

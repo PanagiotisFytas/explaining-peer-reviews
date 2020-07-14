@@ -3,7 +3,7 @@ import torch.nn.utils.rnn as rnn
 from DataLoader import DataLoader
 import numpy as np
 from sklearn.dummy import DummyClassifier
-from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report, mean_squared_error
 from sklearn.model_selection import cross_val_predict
 
 
@@ -53,3 +53,5 @@ majoriy_clf.fit(embeddings_input, labels)
 preds = majoriy_clf.predict(test_embeddings_input)
 
 print('Majority Classifier:\n', classification_report(test_labels, preds, output_dict=True))
+
+print(mean_squared_error(test_labels, preds))

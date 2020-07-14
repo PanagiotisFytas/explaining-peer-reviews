@@ -20,7 +20,12 @@ print(device)
 
 cross_validation = False
 # cross_validation = True
+# causal_layer = None
+causal_layer = 'adversarial'
 
+# aspect = 'CLARITY'
+# aspect = 'ORIGINALITY'
+aspect = 'RECOMMENDATION'
 
 data_loader = LSTMEmbeddingLoader(device=device,
                                   lemmatise=True, 
@@ -43,13 +48,17 @@ number_of_tokens = torch.tensor([review.shape[0] for review in embeddings_input]
 embeddings_input = rnn.pad_sequence(embeddings_input, batch_first=True).to(device)  # pad the reviews to form a tensor
 print(embeddings_input.shape)
 labels = data_loader.read_labels().to(device)
+if causal_layer:
+    # scores = (data_loader.read_average_scores(aspect=aspect) > 2.5).to(device, dtype=torch.float)
+    scores = data_loader.read_average_scores(aspect=aspect).to(device, dtype=torch.float)
+
 _, _, embedding_dimension = embeddings_input.shape
 
-epochs = 100 # 110 # 500
-batch_size = 100 # 30
-lr = 0.0001
+epochs = 90 # 150 # 100 # 110 # 500
+batch_size = 30 # 100 # 30
+lr = 0.0005 # 0.0001
 hidden_dimensions = [128, 64] # [128, 64] # [1500, 700, 300]
-lstm_hidden_dimension = 300 # 500
+lstm_hidden_dimension = 30 # 500
 num_layers = 1  # Layers in the RN. Having more than 1 layer probably makes interpretability worst by combining more tokens into hiddent embs
 bidirectional = False
 cell_type = 'GRU'
@@ -63,14 +72,23 @@ if cross_validation:
         'num_layers': num_layers,
         'bidirectional': bidirectional,
         'hidden_dimensions': hidden_dimensions,
-        'cell_type': cell_type
+        'cell_type': cell_type,
+        'causal_layer': causal_layer
     }
     optimizer = torch.optim.Adam
     lr = lr
     loss_fn = nn.BCELoss
-    data = [embeddings_input, number_of_tokens, labels]
-    cross_validation_metrics(network, network_params, optimizer, loss_fn, lr,
-                             epochs, batch_size, device, data, k=5, shuffle=True)
+    if not causal_layer:
+        data = [embeddings_input, number_of_tokens, labels]
+        cross_validation_metrics(network, network_params, optimizer, loss_fn, lr,
+                                 epochs, batch_size, device, data, k=5, shuffle=True)
+    else:
+        data = [embeddings_input, number_of_tokens, labels, scores]
+        confounding_loss_fn = nn.MSELoss
+        cross_validation_metrics(network, network_params, optimizer, loss_fn, lr,
+                                 epochs, batch_size, device, data, confounding_loss_fn=confounding_loss_fn, k=5, shuffle=True)
+
+
 else:
     # hold-one-out split
     model = LSTMAttentionClassifier(device=device, 
@@ -79,7 +97,8 @@ else:
                                     num_layers=num_layers,
                                     bidirectional=bidirectional,
                                     hidden_dimensions=hidden_dimensions,
-                                    cell_type=cell_type
+                                    cell_type=cell_type,
+                                    causal_layer=causal_layer
                                    )
     shuffle = False
     valid_size = 0.1
@@ -104,26 +123,48 @@ else:
 
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     loss_fn = nn.BCELoss()
-    data = [embeddings_input, number_of_tokens, labels]
-    test_data = [test_embeddings_input, test_number_of_tokens, test_labels]
+    if not causal_layer:
+        confounding_loss_fn = None
+        data = [embeddings_input, number_of_tokens, labels]
+        test_data = [test_embeddings_input, test_number_of_tokens, test_labels]
+    else:
+        confounding_loss_fn = nn.MSELoss()
+        data = [embeddings_input, number_of_tokens, labels, scores]
+        test_data = [test_embeddings_input, test_number_of_tokens, test_labels, scores]
+
 
     model.to(device)
 
-    train_losses, test_losses = training_loop(data,
-                                              test_data, 
-                                              model, 
-                                              device, 
-                                              optimizer, 
-                                              loss_fn, 
-                                              epochs=epochs, 
-                                              batch_size=batch_size, 
-                                              return_losses=True
-                                            )
+    losses = training_loop(data,
+                           test_data, 
+                           model, 
+                           device, 
+                           optimizer, 
+                           loss_fn,
+                           confounder_loss_fn=confounding_loss_fn,
+                           causal_layer=causal_layer,
+                           epochs=epochs, 
+                           batch_size=batch_size, 
+                           return_losses=True
+                         )
 
-    plt.plot(train_losses, label='Train Loss')
-    plt.plot(test_losses, label='Test Loss')
-    plt.legend()
-    plt.savefig('/home/pfytas/losses.png')
-    model_path = LSTMEmbeddingLoader.DATA_ROOT / 'lstm_att_classifier'
+    
+    if not causal_layer:
+        train_losses, test_losses = losses
+        plt.plot(train_losses, label='Train Loss')
+        plt.plot(test_losses, label='Test Loss')
+        plt.legend()
+        plt.savefig('/home/pfytas/losses.png')
+        model_path = LSTMEmbeddingLoader.DATA_ROOT / 'lstm_att_classifier'
+    else:
+        train_losses, test_losses, confounding_train_losses, confounding_test_losses = losses
+        plt.yscale('log')
+        plt.plot(train_losses, label='Train Loss')
+        plt.plot(test_losses, label='Test Loss')
+        plt.plot(confounding_train_losses, label='Confounding Train Loss')
+        plt.plot(confounding_test_losses, label='Confounding Test Loss')
+        plt.legend()
+        plt.savefig('/home/pfytas/losses.png')
+        model_path = LSTMEmbeddingLoader.DATA_ROOT / ('lstm_att_classifier' + causal_layer)
     model_path.mkdir(parents=True, exist_ok=True)
     torch.save(model, model_path / 'model.pt')

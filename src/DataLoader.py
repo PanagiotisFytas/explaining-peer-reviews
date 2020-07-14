@@ -8,6 +8,7 @@ import sys
 import nltk
 from nltk.corpus import stopwords
 import spacy
+import numpy as np
 
 
 '''
@@ -431,7 +432,7 @@ class PerReviewDataLoader(DataLoader):
 
 class PreProcessor:
     nlp = spacy.load('en_core_web_lg')
-    def __init__(self, lemmatise=True, lowercase=True, stopword_removal=True, punctuation_removal=True):
+    def __init__(self, final_decision='only', lemmatise=True, lowercase=True, stopword_removal=True, punctuation_removal=True):
         self.lemmatise = lemmatise
         self.lowercase = lowercase
         self.stopword_removal = stopword_removal
@@ -440,12 +441,14 @@ class PreProcessor:
             self.stopwords = stopwords.words('english')
         else:
             self.stopwords = []
+        self.final_decision = final_decision
 
     def preprocess(self, reviews):
         processed_reviews = []
         for review in reviews:
             # for meta reviews:
-            review = review[0]
+            if self.final_decision == 'only':
+                review = review[0]
             if self.lowercase:
                 review = review.lower()
             if self.lemmatise:
@@ -522,6 +525,7 @@ class LSTMEmbeddingLoader(DataLoader):
         self.embeddings_from_reviews = []
         self.device = device
         self.labels = []
+        self.scores = []
 
         # path for saving embeddings matrices
         self.path = self.DATA_ROOT / 'lstm_embeddings/' / self.conference / 'pre_trained' / self.get_dir_name()
@@ -601,6 +605,63 @@ class LSTMEmbeddingLoader(DataLoader):
             self.embeddings_from_reviews.append(torch.load(file))
         return self.embeddings_from_reviews
 
+    def read_average_scores(self, aspect='RECOMMENDATION'):
+        mean_scores_per_paper = []
+        for i, file in enumerate(self.files):
+            with open(file) as json_file:
+                full_reviews = json.load(json_file)
+                scores_for_specific_paper = []
+                reviews_for_specific_paper = [] # to remove duplicates
+                for review in full_reviews['reviews']:
+                    if aspect not in review:
+                        continue
+                    if self.meta_reviews or not review['IS_META_REVIEW']:
+                        if not self.remove_duplicates or review['comments'] not in reviews_for_specific_paper:
+                            scores_for_specific_paper.append(review[aspect])
+                            reviews_for_specific_paper.append(review['comments'])
+            if not scores_for_specific_paper:
+                mean = 2.5
+            else:
+                mean = np.mean(scores_for_specific_paper)
+            mean_scores_per_paper.append(mean)
+        return torch.tensor(mean_scores_per_paper, dtype=torch.float)
+
+
+class LSTMPerReviewDataLoader(LSTMEmbeddingLoader):
+    def __init__(self, *args, aspect='RECOMMENDATION', **kwargs):
+        super(LSTMPerReviewDataLoader, self).__init__(*args, **kwargs)
+        self.path = self.DATA_ROOT / 'lstm_per_review_embeddings'/ 'aspect' / self.conference / 'pre_trained' / self.get_dir_name()
+        self.scores = []
+        self.aspect = aspect
+    
+    def exclude(self, review):
+        # exclude empty reviews and final decision if specified
+        return (not self.allow_empty and not review['comments'])\
+               or (self.aspect not in review)\
+               or (self.final_decision == 'exclude' and review.get('TITLE') == 'ICLR committee final decision')
+
+    """
+    :returns only the text of the reviews (comments attribute of the json)
+    """
+    def read_reviews_only_text(self):
+        for i, file in enumerate(self.files):
+            with open(file) as json_file:
+                full_reviews = json.load(json_file)
+                reviews_for_specific_paper = []
+                for review in full_reviews['reviews']:
+                    if self.exclude(review):
+                        continue
+                    if self.final_decision == 'only':
+                        raise Exception('Final decisions should be excluded from this data loader')
+                    elif self.meta_reviews or not review['IS_META_REVIEW']:
+                        if not self.remove_duplicates or review['comments'] not in reviews_for_specific_paper:
+                            reviews_for_specific_paper.append(review['comments'])
+                            self.paper_reviews.append(review['comments'])
+                            self.scores.append(review[self.aspect])
+        return self.paper_reviews
+    
+    def read_scores(self):
+        return self.scores
 
 
 if __name__ == '__main__':

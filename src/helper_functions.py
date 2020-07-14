@@ -146,59 +146,111 @@ def cross_validation_metrics(network, network_params, optimizer_class, loss_fn_c
     print(sum(cv_metrics)/k)
 
 
-def training_loop(data, test_data, model, device, optimizer, loss_fn, epochs=100, batch_size=64, gru_model=False,
-                  verbose=True, return_losses=False):
-    embeddings, lengths, labels = data
-    test_embeddings, test_lengths, test_labels = test_data
+def training_loop(data, test_data, model, device, optimizer, loss_fn, confounder_loss_fn=None, epochs=100, batch_size=64, gru_model=False,
+                  verbose=True, return_losses=False, causal_layer=None):
+    '''
+    :param causal_layer = None | 'adversarial'
+    '''
+    if not causal_layer:
+        embeddings, lengths, labels = data
+        test_embeddings, test_lengths, test_labels = test_data
+    else:
+        embeddings, lengths, labels, confounders = data
+        test_embeddings, test_lengths, test_labels, test_confounders = test_data
+
     N, _seq_len, input_size = embeddings.shape
     test_N, _, _ = test_embeddings.shape
     if return_losses:
         train_losses = []
         test_losses = []
+        if causal_layer:
+            confounder_train_losses = []
+            confounder_test_losses = []
     for epoch in range(1, epochs + 1):
         permutation = torch.randperm(N)
         model.train()
         if return_losses:
             train_losses_in_epoch = []
+            if causal_layer:
+                confounder_train_losses_in_epoch = []
         for i in range(0, N, batch_size):
             optimizer.zero_grad()
 
             indices = permutation[i:i + batch_size]
             batch_y = labels[indices]
             batch_x = embeddings[indices, :, :]
-            # for data augmentation
-            # _, seq_len, _ = batch_x.shape
-            # seq_permutation = torch.randperm(seq_len)
-            # batch_x = batch_x[:, seq_permutation, :]
+            if causal_layer:
+                batch_confounders = confounders[indices]
+                batch_confounders.to(device)
             batch_x.to(device)
             batch_y.to(device)
 
             batch_lengths = lengths[indices]
             batch_lengths.to(device)
 
-            preds = model(batch_x, batch_lengths).squeeze(1)
-            loss = loss_fn(preds, batch_y)
-            train_loss = loss.item()
-            if return_losses:
-                train_losses_in_epoch.append(train_loss)
-            loss.backward()
+            if not causal_layer:
+                preds = model(batch_x, batch_lengths).squeeze(1)
+                loss = loss_fn(preds, batch_y)
+                train_loss = loss.item()
+
+                loss.backward()
+
+                if return_losses:
+                    train_losses_in_epoch.append(train_loss)
+            elif causal_layer == 'adversarial':
+                preds, confounder_preds = model(batch_x, batch_lengths)
+                preds = preds.squeeze(1)
+                confounder_preds = confounder_preds.squeeze(1)
+                # paper classification loss
+                loss1 = loss_fn(preds, batch_y)
+                train_loss = loss1.item()
+                # confounder loss
+                # print(confounder_preds.shape, batch_confounders.shape, confounder_loss_fn)
+                # print(confounder_preds)
+                # print('!!!!!!!!!!')
+                # print(batch_confounders)
+                loss2 = confounder_loss_fn(confounder_preds, batch_confounders)
+                confounder_train_loss = loss2.item()
+                # total loss
+                loss = loss1 - 1 * loss2
+
+                loss.backward()
+                
+                if return_losses:
+                    train_losses_in_epoch.append(train_loss)
+                    confounder_train_losses_in_epoch.append(confounder_train_loss)
+
             if gru_model:
                 model.hx = model.hx.detach()
             optimizer.step()
 
         if return_losses:
             model.eval()
-            test_preds = model(test_embeddings, test_lengths).squeeze(1)
+            if not causal_layer:
+                test_preds = model(test_embeddings, test_lengths).squeeze(1)
+            elif causal_layer == 'adversarial':
+                test_preds, test_confounder_preds = model(test_embeddings, test_lengths)
+                test_preds = test_preds.squeeze(1)
+                test_confounder_preds = test_confounder_preds.squeeze(1)
             test_loss = loss_fn(test_preds, test_labels)
             test_loss = test_loss.item()
             train_loss = np.array(train_losses_in_epoch).mean()
             train_losses.append(train_loss)
             test_losses.append(test_loss)
+            if causal_layer:
+                confounder_test_loss = confounder_loss_fn(test_preds, test_labels)
+                confounder_test_loss = confounder_test_loss.item()
+                confounder_train_loss = np.array(confounder_train_losses_in_epoch).mean()
+                confounder_train_losses.append(confounder_train_loss)
+                confounder_test_losses.append(confounder_test_loss)
+
 
         if verbose:
             model.eval()
-
-            predictions = model(embeddings, lengths)
+            if not causal_layer:
+                predictions = model(embeddings, lengths)
+            else:
+                predictions, _ = model(embeddings, lengths)
             preds = predictions.view(-1) >= 0.5
             targets = labels >= 0.5
 
@@ -206,7 +258,10 @@ def training_loop(data, test_data, model, device, optimizer, loss_fn, epochs=100
             print('-----EPOCH ' + str(epoch) + '-----')
             print('Accuracy on train set: ', accuracy)
 
-            predictions = model(test_embeddings, test_lengths)
+            if not causal_layer:
+                predictions = model(test_embeddings, test_lengths)
+            else:
+                predictions, _ = model(test_embeddings, test_lengths)
             preds = (predictions.view(-1) >= 0.5).to(device='cpu', dtype=torch.int)
             targets = (test_labels >= 0.5).to(device='cpu', dtype=torch.int)
 
@@ -224,7 +279,10 @@ def training_loop(data, test_data, model, device, optimizer, loss_fn, epochs=100
             # print('RMSE on test set: ', rmse(predictions, test_labels))
     
     if return_losses:
-        return train_losses, test_losses
+        if not causal_layer:
+            return train_losses, test_losses
+        else:
+            return train_losses, test_losses, confounder_train_losses, confounder_test_losses
     
 
 

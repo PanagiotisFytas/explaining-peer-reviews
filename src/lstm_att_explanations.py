@@ -9,6 +9,9 @@ import pathlib
 import os
 from combine_explanations import LSTMMetrics, cols
 import pandas as pd
+import scipy.stats as ss
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import mean_squared_error, classification_report
 
 
 device_idx = input("GPU: ")
@@ -35,7 +38,7 @@ def generate_lstm_explanations(model, reviews, embeddings, number_of_tokens):
         for j, word in enumerate(review):
             weight = attention_weights[i, j].item()
             # print('Word: ', word, ' Weight: ', weight, '\n')
-            if word not in word_metrics_acc:
+            if word not in word_metrics_acc:    
                 word_metrics_acc[word] = LSTMMetrics(word)
             word_metrics_acc[word].add(weight)
 
@@ -53,10 +56,54 @@ def generate_lstm_explanations(model, reviews, embeddings, number_of_tokens):
     return combined_words
                 
 
+def generate_bow_for_lexicon(explanation, reviews, k=50):
+    '''
+    :param explanation: a dataframe with the global explanations
+    :param reviews: preprocessed reviews
+    :param k: use the top k words from the lexicon
+    :returns a dataframe with the words of a lexicon as columns and a binary vector for each review as row
+    '''
+    lexicon = explanation['Words'].to_list()[:k]
+    bow = pd.DataFrame(columns=lexicon)
+    idx = 0
+    for review in reviews:
+        bow_vector = []
+        for word in lexicon:
+            if word in review:
+                bow_vector.append(1)
+            else:
+                bow_vector.append(0)
+        bow.loc[idx] = bow_vector
+        idx += 1
+    return bow
+        
+
+
+# code from https://towardsdatascience.com/the-search-for-categorical-correlation-a1cf7f1888c9
+def cramers_V(x, y):
+    '''
+    :param x: panda df
+    :param y: panda df
+    :returns the cramer V correlation between x and y
+    '''
+    confusion_matrix = pd.crosstab(y, x)
+    chi2 = ss.chi2_contingency(confusion_matrix)[0]
+    n = confusion_matrix.sum().sum()
+    phi2 = chi2/n
+    r,k = confusion_matrix.shape
+    phi2corr = max(0, phi2-((k-1)*(r-1))/(n-1))
+    rcorr = r-((r-1)**2)/(n-1)
+    kcorr = k-((k-1)**2)/(n-1)
+    return np.sqrt(phi2corr/min((kcorr-1),(rcorr-1)))
+
 
 if __name__ == '__main__':
 
-    clf_to_explain = 'lstm_att_classifier'
+    causal_layer = 'adversarial'
+    if not causal_layer:
+        clf_to_explain = 'lstm_att_classifier'
+    else:
+        clf_to_explain = 'lstm_att_classifieradversarial'
     # paths
     path = LSTMEmbeddingLoader.DATA_ROOT / clf_to_explain
     model_path = str(path / 'model.pt')
@@ -100,8 +147,36 @@ if __name__ == '__main__':
     test_number_of_tokens = number_of_tokens[test_idx]
     test_labels = labels[test_idx]
 
+    # train set
+
+    train_text_input = text_input[train_idx]
+    train_embeddings_input = embeddings_input[train_idx, :, :]
+    train_number_of_tokens = number_of_tokens[train_idx]
+    train_labels = labels[train_idx]
+
     # load model
     model = torch.load(model_path)
     model.to(device)
 
-    generate_lstm_explanations(model, test_text_input, test_embeddings_input, test_number_of_tokens)
+    exp = generate_lstm_explanations(model, test_text_input, test_embeddings_input, test_number_of_tokens)
+    # get explanation (and lexicon) from test set
+
+    test_bow = generate_bow_for_lexicon(exp, test_text_input)
+
+    test_labels_df = pd.DataFrame(test_labels.view(-1,1).to('cpu').numpy())
+
+    train_bow = generate_bow_for_lexicon(exp, train_text_input)
+
+    train_labels_df = pd.DataFrame(train_labels.to('cpu').numpy())
+
+    with pd.option_context('display.max_rows', None, 'display.max_columns', 8):
+        print(test_bow)
+        print(test_labels_df)
+    
+    clf =  LogisticRegression().fit(train_bow, train_labels_df)
+    print(clf.score(test_bow, test_labels_df))
+    preds_prob = clf.predict_proba(test_bow)[:, 0]
+    print('MSE with probs', mean_squared_error(test_labels_df, preds_prob))
+    preds = clf.predict(test_bow)
+    print('MSE with labels', mean_squared_error(test_labels_df, preds))
+    print('Classification report:\n', classification_report(test_labels_df, preds))

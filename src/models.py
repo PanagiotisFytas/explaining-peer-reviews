@@ -246,7 +246,7 @@ class ScoreClassifier(nn.Module):
 
 class LSTMAttentionClassifier(nn.Module):
     def __init__(self, device, input_size=768, lstm_hidden_size=500, num_layers=1, bidirectional=False, hidden_dimensions=[500],
-                 cell_type='GRU'):
+                 cell_type='GRU', causal_layer=None, causal_hidden_dimensions=[30, 20]):
         super(LSTMAttentionClassifier, self).__init__()
         self.device = device
         self.cell_type = cell_type
@@ -281,6 +281,19 @@ class LSTMAttentionClassifier(nn.Module):
         
         self.att = nn.Linear(self.directions * lstm_hidden_size, 1, bias=False)
 
+        self.causal_layer = causal_layer
+        if causal_layer == 'adversarial':
+            self.drop2 = nn.Dropout(0.5)
+            layer_input = lstm_hidden_size * self.directions
+            self.causal_layers = nn.ModuleList([])
+            for layer_out in causal_hidden_dimensions:
+                self.causal_layers.append(nn.Linear(layer_input, layer_out))
+                layer_input = layer_out
+            self.causal_last_fc = nn.Linear(layer_input, 10) # regression as multiclass classification
+            self.classes = torch.arange(1, 11).view(-1, 1).to(self.device, dtype=torch.float) # classes has shape 10, 1
+            self.softmax = nn.Softmax()
+        
+
     def create_mask(self, lengths):
         max_len = lengths.max()
         mask = (torch.arange(max_len).expand(len(lengths), max_len) < lengths.unsqueeze(1))
@@ -288,12 +301,13 @@ class LSTMAttentionClassifier(nn.Module):
 
     def forward(self, inp, lengths):
         # forward through the rnn and get the output of the rnn and the attention weights
-        attention, out = self.rnn_att_forward(inp, lengths)
+        attention, rnn_out = self.rnn_att_forward(inp, lengths)
         # print(attention.shape)
         # pool the output of the rnn using attention
-        out = torch.bmm(attention.transpose(1, 2), out).view(-1, self.lstm_hidden_size * self.directions)  # out should be batch_size x lstm_hidden_size
+        rnn_out = torch.bmm(attention.transpose(1, 2), rnn_out).view(-1, self.lstm_hidden_size * self.directions)  # out should be batch_size x lstm_hidden_size
         # print(out.shape)
 
+        out = rnn_out
         for layer in self.fc_layers:
             out = layer(out)
             out = self.activation(out)
@@ -301,7 +315,13 @@ class LSTMAttentionClassifier(nn.Module):
 
         out = self.last_fc(out)
         out = self.sigmoid(out)
-        return out
+
+        if not self.causal_layer:
+            return out
+
+        if self.causal_layer == 'adversarial':
+            causal_out = self.causal_mlp_forward(rnn_out)
+            return out, causal_out
     
     def rnn_att_forward(self, inp, lengths):
         # seq, batch, embedding_dim = inp.shape
@@ -325,4 +345,16 @@ class LSTMAttentionClassifier(nn.Module):
         attention = nn.functional.softmax(attention, dim=1)
         
         return attention, out
-        
+
+    def causal_mlp_forward(self, rnn_out):
+        out = rnn_out
+        for layer in self.causal_layers:
+            out = self.drop2(out)
+            out = layer(out)
+            out = self.activation(out)
+        out = self.drop2(out)
+        out = self.causal_last_fc(out)
+        # out = self.sigmoid(out)
+        out = self.softmax(out)
+        out = out.matmul(self.classes) # get weights average of age for regression
+        return out
