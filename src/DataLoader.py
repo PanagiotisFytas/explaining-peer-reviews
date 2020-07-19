@@ -61,6 +61,7 @@ class DataLoader:
     HEAD = 128
     TAIL = 384
     MAXLEN = 512
+    BATCH_SIZE = 200
     SCIBERT_PATH = str(DATA_ROOT / 'scibert_scivocab_uncased')
 
     def __init__(self, device, full_reviews=False, meta_reviews=False, conference='iclr_2017',
@@ -135,6 +136,8 @@ class DataLoader:
         self.embeddings_from_reviews = []
         self.device = device
         self.labels = []
+        self.abstracts = []
+        self.abstract_embeddings = []
 
         # path for saving embeddings matrices
         self.path = self.DATA_ROOT / 'embeddings/' / self.conference / 'pre_trained' / self.get_dir_name()
@@ -345,6 +348,57 @@ class DataLoader:
         self.labels = torch.tensor(self.labels, dtype=torch.float)
         return self.labels
 
+    def read_abstract_embeddings(self):
+        abstract_path = self.DATA_ROOT / 'abstract_embeddings' / self.conference / 'pre_trained' / self.get_dir_name()
+        try:
+            self._read_abstract_embeddigns_from_file(abstract_path)
+        except FileNotFoundError:
+            self.read_abstracts_text()
+            self._create_abstract_embeddings()
+            self._write_abstract_embeddings(abstract_path)
+        return self.abstract_embeddings
+
+    def read_abstracts_text(self):
+        for i, file in enumerate(self.files):
+            with open(file) as json_file:
+                full_reviews = json.load(json_file)
+            self.abstracts.append(full_reviews['abstract'])
+        # self.abstracts = torch.tensor(self.abstracts, dtype=torch.float)
+        return self.abstracts
+
+    def _read_abstract_embeddigns_from_file(self, abstract_path):
+        files = [os.path.join(abstract_path, file) for file in os.listdir(abstract_path) if file.endswith('.pt') and 'abstract_' in file]
+        # natural ordering sort so when I keep the order of the papers from PeerRead. This preserves the order for
+        # reading the labels.
+        files.sort(key=natural_sort_key)
+        for file in files:
+            self.abstract_embeddings.append(torch.load(file).view(1, -1))
+        print('Shape: ', self.abstract_embeddings[0].shape)
+        self.abstract_embeddings = torch.cat(self.abstract_embeddings)
+        print('Shape: ', self.abstract_embeddings.shape)
+        return self.abstract_embeddings
+
+    def _write_abstract_embeddings(self, abstract_path):
+        abstract_path = self.DATA_ROOT / 'abstract_embeddings' / self.conference / 'pre_trained' / self.get_dir_name()
+        abstract_path.mkdir(parents=True, exist_ok=True)
+        for idx, abstract in enumerate(self.abstract_embeddings):
+            torch.save(abstract, abstract_path / ('abstract_' + str(idx) + '.pt'))
+
+    def _create_abstract_embeddings(self):
+        self.model.to(self.device)
+        cnt = 0
+        N = len(self.abstracts)
+        print('Total Len: ', N)
+        for i in range(0, N, self.BATCH_SIZE):
+            abstracts = self.abstracts[i:i+self.BATCH_SIZE]
+            embeddings = self.reviews_to_embeddings(abstracts)
+            self.abstract_embeddings.append(embeddings)
+            cnt += 1
+            print(cnt)
+        self.abstract_embeddings = torch.cat(self.abstract_embeddings)
+        print('Shape: ', self.abstract_embeddings.shape)
+        return self.abstract_embeddings
+
 
 class PerReviewDataLoader(DataLoader):
     BATCH_SIZE = 200
@@ -447,6 +501,7 @@ class PreProcessor:
         processed_reviews = []
         for review in reviews:
             # for meta reviews:
+            # print(review)
             if self.final_decision == 'only':
                 review = review[0]
             if self.lowercase:
@@ -482,7 +537,7 @@ class LSTMEmbeddingLoader(DataLoader):
         self.stopword_removal = stopword_removal
         self.punctuation_removal = punctuation_removal
         self.preprocessor = PreProcessor(lemmatise=lemmatise, lowercase=lowercase, stopword_removal=stopword_removal,
-                                         punctuation_removal=punctuation_removal)
+                                         final_decision=final_decision, punctuation_removal=punctuation_removal)
         
         self.conference = conference
         self.final_decision = final_decision
@@ -628,16 +683,22 @@ class LSTMEmbeddingLoader(DataLoader):
 
 
 class LSTMPerReviewDataLoader(LSTMEmbeddingLoader):
-    def __init__(self, *args, aspect='RECOMMENDATION', **kwargs):
+    def __init__(self, *args, aspect=None, **kwargs):
         super(LSTMPerReviewDataLoader, self).__init__(*args, **kwargs)
-        self.path = self.DATA_ROOT / 'lstm_per_review_embeddings'/ 'aspect' / self.conference / 'pre_trained' / self.get_dir_name()
-        self.scores = []
+        if not aspect:
+            self.path = self.DATA_ROOT / 'lstm_per_review_embeddings'/ self.conference / 'pre_trained' / self.get_dir_name()
+        else:
+            self.path = self.DATA_ROOT / 'lstm_per_review_embeddings'/ aspect / self.conference / 'pre_trained' / self.get_dir_name()
+            
+        self.aspect_scores = []
         self.aspect = aspect
+        self.recommendation_scores = []
     
     def exclude(self, review):
         # exclude empty reviews and final decision if specified
         return (not self.allow_empty and not review['comments'])\
-               or (self.aspect not in review)\
+               or ('RECOMMENDATION' not in review)\
+               or (self.aspect and self.aspect not in review)\
                or (self.final_decision == 'exclude' and review.get('TITLE') == 'ICLR committee final decision')
 
     """
@@ -657,11 +718,17 @@ class LSTMPerReviewDataLoader(LSTMEmbeddingLoader):
                         if not self.remove_duplicates or review['comments'] not in reviews_for_specific_paper:
                             reviews_for_specific_paper.append(review['comments'])
                             self.paper_reviews.append(review['comments'])
-                            self.scores.append(review[self.aspect])
+                            self.recommendation_scores.append(review['RECOMMENDATION'])
+                            if self.aspect:
+                                self.aspect_scores.append(review[self.aspect])
+
         return self.paper_reviews
     
-    def read_scores(self):
-        return self.scores
+    def read_aspect_scores(self):
+        return  torch.tensor(self.aspect_scores, dtype=torch.float)
+    
+    def read_labels(self):
+        return (torch.tensor(self.recommendation_scores) > 5).float()
 
 
 if __name__ == '__main__':
