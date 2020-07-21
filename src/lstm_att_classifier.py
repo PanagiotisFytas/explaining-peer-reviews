@@ -64,7 +64,7 @@ if causal_layer == 'residual':
     lr = 0.0001 # 0.0005
     hidden_dimensions = [64] # [128, 64] # [128, 64] # [1500, 700, 300]
     lstm_hidden_dimension = 16 # 30 # 300 # 500
-    num_layers = 1  # Layers in the RN. Having more than 1 layer probably makes interpretability worst by combining more tokens into hiddent embs
+    num_layers = 4  # Layers in the RN. Having more than 1 layer probably makes interpretability worst by combining more tokens into hiddent embs
     bidirectional = False
     cell_type = 'GRU'
     causal_hidden_dimensions = [300, 164] # [64]
