@@ -60,7 +60,7 @@ _, _, embedding_dimension = embeddings_input.shape
 
 if causal_layer == 'residual':
     epochs = 60 # 90 # 100 # 110 # 500
-    batch_size = 30 # 100 # 30
+    batch_size = 100 # 100 # 30
     lr = 0.0001 # 0.0005
     hidden_dimensions = [64] # [128, 64] # [128, 64] # [1500, 700, 300]
     lstm_hidden_dimension = 60 # 30 # 300 # 500
