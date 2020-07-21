@@ -3,15 +3,15 @@ causal_layer: residual
 aspect: RECOMMENDATION
 cross_validation: False
 folds: 5
-lexicon_size: 100
+lexicon_size: 150
 residual:
     epochs: 90
-    batch_size: 30
-    lr: 0.0001
+    batch_size: 70 # 30
+    lr: 0.0005 # 0.0001
     hidden_dimensions:
         - 32 
         - 16 
-    lstm_hidden_dimension: 120 # 30 # 300 good performance bad conf # 120 # 500
+    lstm_hidden_dimension: 5 # 30 # 300 good performance bad conf on GRU # 120 # 500
     num_layers: 1  # Layers in the RN. Having more than 1 layer probably makes interpretability worst by combining more tokens into hiddent embs
     bidirectional: False
     cell_type: 'LSTM' # 'GRU'
