@@ -211,6 +211,7 @@ if __name__ == '__main__':
     test_abstracts = test_abstracts.to('cpu').numpy()
     train_bow = np.concatenate((train_bow, train_abstracts), axis=1)
     test_bow = np.concatenate((test_bow, test_abstracts), axis=1)
+    print(train_bow.shape, test_bow.shape)
     if config['cv_explanation']:
         X = np.concatenate([train_bow, test_bow], axis=0)
         y = np.concatenate([train_labels_df, test_labels_df], axis=0)
