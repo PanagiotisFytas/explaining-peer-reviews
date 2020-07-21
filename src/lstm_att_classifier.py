@@ -10,7 +10,7 @@ import os
 import matplotlib.pyplot as plt
 import yaml
 
-with open('config/lstm_att_classifier.yaml') as f:
+with open('src/config/lstm_att_classifier.yaml') as f:
     config = yaml.load(f, Loader=yaml.FullLoader)
 
 print(config)
