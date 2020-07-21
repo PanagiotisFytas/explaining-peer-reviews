@@ -212,8 +212,8 @@ if __name__ == '__main__':
     train_bow = np.concatenate((train_bow, train_abstracts), axis=1)
     test_bow = np.concatenate((test_bow, test_abstracts), axis=1)
     if config['cv_explanation']:
-        X = pd.concat([train_bow, test_bow])
-        y = pd.concat([train_labels_df, test_labels_df])
+        X = np.concatenate([train_bow, test_bow], axis=0)
+        y = np.concatenate([train_labels_df, test_labels_df], axis=0)
         preds = cross_val_predict(LogisticRegression(max_iter=500), X, y, cv=config['folds'])
         print('MSE with labels', mean_squared_error(y, preds))
         print('Classification report:\n', classification_report(y, preds))
@@ -231,8 +231,8 @@ if __name__ == '__main__':
 
     # concatenate lexicon bag of words with abstract embeddins
     if config['cv_explanation']:
-        X = pd.concat([train_bow, test_bow])
-        y = pd.concat([train_labels_df, test_labels_df])
+        X = np.concatenate([train_abstracts, test_abstracts], axis=0)
+        y = np.concatenate([train_labels_df, test_labels_df], axis=0)
         preds = cross_val_predict(LogisticRegression(max_iter=500), X, y, cv=config['folds'])
         print('MSE with labels', mean_squared_error(y, preds))
         print('Classification report:\n', classification_report(y, preds))
