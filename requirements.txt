@@ -15,7 +15,6 @@ dataclasses==0.7
 decorator==4.4.2
 defusedxml==0.6.0
 docutils==0.15.2
-en-core-web-lg @ https://github.com/explosion/spacy-models/releases/download/en_core_web_lg-2.3.0/en_core_web_lg-2.3.0.tar.gz
 entrypoints==0.3
 filelock==3.0.12
 future==0.18.2
