@@ -12,7 +12,7 @@ import pandas as pd
 import scipy.stats as ss
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import mean_squared_error, classification_report
-from sklearn.model_selection import cross_validate
+from sklearn.model_selection import cross_val_predict
 import yaml
 
 
@@ -189,7 +189,7 @@ if __name__ == '__main__':
     if config['cv_explanation']:
         X = pd.concat([train_bow, test_bow])
         y = pd.concat([train_labels_df, test_labels_df])
-        preds = cross_validate.cross_val_predict(LogisticRegression(max_iter=500), X, y, cv=config['folds'])
+        preds = cross_val_predict(LogisticRegression(max_iter=500), X, y, cv=config['folds'])
         print('MSE with labels', mean_squared_error(y, preds))
         print('Classification report:\n', classification_report(y, preds))
     else:
@@ -214,7 +214,7 @@ if __name__ == '__main__':
     if config['cv_explanation']:
         X = pd.concat([train_bow, test_bow])
         y = pd.concat([train_labels_df, test_labels_df])
-        preds = cross_validate.cross_val_predict(LogisticRegression(max_iter=500), X, y, cv=config['folds'])
+        preds = cross_val_predict(LogisticRegression(max_iter=500), X, y, cv=config['folds'])
         print('MSE with labels', mean_squared_error(y, preds))
         print('Classification report:\n', classification_report(y, preds))
     else:
@@ -233,7 +233,7 @@ if __name__ == '__main__':
     if config['cv_explanation']:
         X = pd.concat([train_bow, test_bow])
         y = pd.concat([train_labels_df, test_labels_df])
-        preds = cross_validate.cross_val_predict(LogisticRegression(max_iter=500), X, y, cv=config['folds'])
+        preds = cross_val_predict(LogisticRegression(max_iter=500), X, y, cv=config['folds'])
         print('MSE with labels', mean_squared_error(y, preds))
         print('Classification report:\n', classification_report(y, preds))
     else:
