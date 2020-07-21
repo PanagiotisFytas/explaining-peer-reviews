@@ -386,7 +386,7 @@ class LSTMAttentionClassifier(nn.Module):
         mask = self.create_mask(output_lengths)
 
         attention = self.att(out)
-        attention = self.activation(attention)
+        # attention = self.activation(attention)
         # print('Mask: ', mask.shape)
         # print('Att layer output: ', attention.shape)
         attention = attention.masked_fill(mask==0, -1e10)  # values of the mask (equal to 0) will become -10^10 so in softmax they are zero
