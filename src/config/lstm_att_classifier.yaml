@@ -1,4 +1,4 @@
-CUDA: 0
+CUDA: '0'
 causal_layer: residual
 aspect: RECOMMENDATION
 cross_validation: False
