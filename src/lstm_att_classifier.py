@@ -8,9 +8,16 @@ from models import LSTMAttentionClassifier
 import pathlib
 import os
 import matplotlib.pyplot as plt
+import yaml
 
+with open('config/lstm_att_classifier.yaml') as f:
+    config = yaml.load(f, Loader=yaml.FullLoader)
 
-device_idx = input("GPU: ")
+print(config)
+exit()
+
+# device_idx = input("GPU: ")
+device_idx = config['CUDA']
 GPU = True
 if GPU:
     device = torch.device("cuda:" + device_idx if torch.cuda.is_available() else "cpu")
@@ -18,16 +25,17 @@ else:
     device = torch.device("cpu")
 print(device)
 
-cross_validation = False
+cross_validation = config['cross_validation']
+folds = config['folds']
 # cross_validation = True
 
 # causal_layer = None
 # causal_layer = 'adversarial'
-causal_layer = 'residual'
+causal_layer = config[causal_layer]
 
 # aspect = 'CLARITY'
 # aspect = 'ORIGINALITY'
-aspect = 'RECOMMENDATION'
+aspect = config[aspect]
 
 data_loader = LSTMEmbeddingLoader(device=device,
                                   lemmatise=True, 
@@ -59,27 +67,43 @@ elif causal_layer == 'residual':
 _, _, embedding_dimension = embeddings_input.shape
 
 if causal_layer == 'residual':
-    epochs = 90 # 60 # 100 # 110 # 500
-    batch_size = 30 # 100 # 30
-    lr = 0.0001 # 0.0005
-    hidden_dimensions = [32, 16] #[64] # [128, 64] # [128, 64] # [1500, 700, 300]
-    lstm_hidden_dimension = 120 # 30 # 300 good performance bad conf # 120 # 500
-    num_layers = 1  # Layers in the RN. Having more than 1 layer probably makes interpretability worst by combining more tokens into hiddent embs
-    bidirectional = False
-    cell_type = 'LSTM' # 'GRU'
-    causal_hidden_dimensions = [64] # [64]
-    att_dim = 32
+    nn_conf = config[causal_layer]
 else:
-    epochs = 60 # 150 # 100 # 110 # 500
-    batch_size = 30 # 100 # 30
-    lr = 0.0001 # 0.0001
-    hidden_dimensions = [128, 64] # [128, 64] # [1500, 700, 300]
-    lstm_hidden_dimension = 300 # 30 # 500
-    num_layers = 1  # Layers in the RN. Having more than 1 layer probably makes interpretability worst by combining more tokens into hiddent embs
-    bidirectional = False
-    cell_type = 'GRU'
-    causal_hidden_dimensions=[30, 20]
-    att_dim = 32
+    nn_conf = config['not_residual']
+
+epochs = nn_conf['epochs'] # 60 # 100 # 110 # 500
+batch_size = nn_conf['batch_size'] # 100 # 30
+lr = nn_conf['lr'] # 0.0005
+hidden_dimensions = nn_conf['hidden_dimensions'] #[64] # [128, 64] # [128, 64] # [1500, 700, 300]
+lstm_hidden_dimension = nn_conf['lstm_hidden_dimension'] # 30 # 300 good performance bad conf # 120 # 500
+num_layers = nn_conf['num_layers']  # Layers in the RN. Having more than 1 layer probably makes interpretability worst by combining more tokens into hiddent embs
+bidirectional = nn_conf['bidirectional']
+cell_type = nn_conf['cell_type'] # 'GRU'
+causal_hidden_dimensions = nn_conf['causal_hidden_dimensions'] # [64]
+att_dim = nn_conf['att_dim']
+
+# if causal_layer == 'residual':
+#     epochs = 90 # 60 # 100 # 110 # 500
+#     batch_size = 30 # 100 # 30
+#     lr = 0.0001 # 0.0005
+#     hidden_dimensions = [32, 16] #[64] # [128, 64] # [128, 64] # [1500, 700, 300]
+#     lstm_hidden_dimension = 120 # 30 # 300 good performance bad conf # 120 # 500
+#     num_layers = 1  # Layers in the RN. Having more than 1 layer probably makes interpretability worst by combining more tokens into hiddent embs
+#     bidirectional = False
+#     cell_type = 'LSTM' # 'GRU'
+#     causal_hidden_dimensions = [64] # [64]
+#     att_dim = 32
+# else:
+#     epochs = 60 # 150 # 100 # 110 # 500
+#     batch_size = 30 # 100 # 30
+#     lr = 0.0001 # 0.0001
+#     hidden_dimensions = [128, 64] # [128, 64] # [1500, 700, 300]
+#     lstm_hidden_dimension = 300 # 30 # 500
+#     num_layers = 1  # Layers in the RN. Having more than 1 layer probably makes interpretability worst by combining more tokens into hiddent embs
+#     bidirectional = False
+#     cell_type = 'GRU'
+#     causal_hidden_dimensions=[30, 20]
+#     att_dim = 32
 
 if cross_validation:
     network = LSTMAttentionClassifier
@@ -101,7 +125,7 @@ if cross_validation:
     if not causal_layer:
         data = [embeddings_input, number_of_tokens, labels]
         cross_validation_metrics(network, network_params, optimizer, loss_fn, lr,
-                                 epochs, batch_size, device, data, k=5, shuffle=True)
+                                 epochs, batch_size, device, data, k=folds, shuffle=True)
     else:
         data = [embeddings_input, number_of_tokens, labels, confounders]
         confounding_loss_fn = nn.MSELoss

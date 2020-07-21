@@ -98,10 +98,11 @@ def cramers_V(x, y):
 
 
 if __name__ == '__main__':
-
-    # causal_layer = None
-    # causal_layer = 'adversarial'
-    causal_layer = 'residual'
+    with open('config/lstm_att_classifier.yaml') as f:
+        config = yaml.load(f, Loader=yaml.FullLoader)
+    # causal_layer = None | 'adversarial' | 'residual'
+    causal_layer = config['causal_layer']
+    lexicon_size = config['lexicon_size']
     if not causal_layer:
         clf_to_explain = 'lstm_att_classifier'
     else:
@@ -167,11 +168,11 @@ if __name__ == '__main__':
     exp = generate_lstm_explanations(model, test_text_input, test_embeddings_input, test_number_of_tokens)
     # get explanation (and lexicon) from test set
 
-    test_bow = generate_bow_for_lexicon(exp, test_text_input)
+    test_bow = generate_bow_for_lexicon(exp, test_text_input, k=lexicon_size)
 
     test_labels_df = pd.DataFrame(test_labels.view(-1,1).to('cpu').numpy())
 
-    train_bow = generate_bow_for_lexicon(exp, train_text_input)
+    train_bow = generate_bow_for_lexicon(exp, train_text_input, k=lexicon_size)
 
     train_labels_df = pd.DataFrame(train_labels.to('cpu').numpy())
 
