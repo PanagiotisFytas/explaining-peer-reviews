@@ -56,7 +56,7 @@ def generate_lstm_explanations(model, reviews, embeddings, number_of_tokens):
     return combined_words
                 
 
-def generate_bow_for_lexicon(explanation, reviews, k=20):
+def generate_bow_for_lexicon(explanation, reviews, k=100):
     '''
     :param explanation: a dataframe with the global explanations
     :param reviews: preprocessed reviews
