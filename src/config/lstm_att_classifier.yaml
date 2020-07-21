@@ -2,6 +2,7 @@ CUDA: '0'
 causal_layer: residual
 aspect: RECOMMENDATION
 cross_validation: False
+cv_explanation: True
 folds: 5
 lexicon_size: 150
 residual:

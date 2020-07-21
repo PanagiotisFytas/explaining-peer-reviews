@@ -12,6 +12,7 @@ import pandas as pd
 import scipy.stats as ss
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import mean_squared_error, classification_report
+from sklearn import cross_validation
 import yaml
 
 
@@ -179,18 +180,26 @@ if __name__ == '__main__':
 
     train_labels_df = pd.DataFrame(train_labels.to('cpu').numpy())
 
+
     # with pd.option_context('display.max_rows', None, 'display.max_columns', 8):
         # print(test_bow)
         # print(test_labels_df)
     
     print('###### LR on lexicon (no confounding): ######')
-    clf =  LogisticRegression().fit(train_bow, train_labels_df)
-    print(clf.score(test_bow, test_labels_df))
-    preds_prob = clf.predict_proba(test_bow)[:, 0]
-    print('MSE with probs', mean_squared_error(test_labels_df, preds_prob))
-    preds = clf.predict(test_bow)
-    print('MSE with labels', mean_squared_error(test_labels_df, preds))
-    print('Classification report:\n', classification_report(test_labels_df, preds))
+    if config['cv_explanation']:
+        X = pd.concat([train_bow, test_bow])
+        y = pd.concat([train_labels_df, test_labels_df])
+        preds = cross_validation.cross_val_predict(LogisticRegression(max_iter=500), X, y, cv=config['folds'])
+        print('MSE with labels', mean_squared_error(y, preds))
+        print('Classification report:\n', classification_report(y, preds))
+    else:
+        clf =  LogisticRegression(max_iter=500).fit(train_bow, train_labels_df)
+        print(clf.score(test_bow, test_labels_df))
+        preds_prob = clf.predict_proba(test_bow)[:, 0]
+        print('MSE with probs', mean_squared_error(test_labels_df, preds_prob))
+        preds = clf.predict(test_bow)
+        print('MSE with labels', mean_squared_error(test_labels_df, preds))
+        print('Classification report:\n', classification_report(test_labels_df, preds))
     print('#############################################')
 
     print('###### LR on lexicon (abstract conf.): ######')
@@ -202,24 +211,37 @@ if __name__ == '__main__':
     test_abstracts = test_abstracts.to('cpu').numpy()
     train_bow = np.concatenate((train_bow, train_abstracts), axis=1)
     test_bow = np.concatenate((test_bow, test_abstracts), axis=1)
-
-    clf =  LogisticRegression(max_iter=500).fit(train_bow, train_labels_df)
-    print(clf.score(test_bow, test_labels_df))
-    preds_prob = clf.predict_proba(test_bow)[:, 0]
-    print('MSE with probs', mean_squared_error(test_labels_df, preds_prob))
-    preds = clf.predict(test_bow)
-    print('MSE with labels', mean_squared_error(test_labels_df, preds))
-    print('Classification report:\n', classification_report(test_labels_df, preds))
-    print('#############################################')
+    if config['cv_explanation']:
+        X = pd.concat([train_bow, test_bow])
+        y = pd.concat([train_labels_df, test_labels_df])
+        preds = cross_validation.cross_val_predict(LogisticRegression(max_iter=500), X, y, cv=config['folds'])
+        print('MSE with labels', mean_squared_error(y, preds))
+        print('Classification report:\n', classification_report(y, preds))
+    else:
+        clf =  LogisticRegression(max_iter=500).fit(train_bow, train_labels_df)
+        print(clf.score(test_bow, test_labels_df))
+        preds_prob = clf.predict_proba(test_bow)[:, 0]
+        print('MSE with probs', mean_squared_error(test_labels_df, preds_prob))
+        preds = clf.predict(test_bow)
+        print('MSE with labels', mean_squared_error(test_labels_df, preds))
+        print('Classification report:\n', classification_report(test_labels_df, preds))
+        print('#############################################')
 
     print('############## LR on abstract: ##############')
 
     # concatenate lexicon bag of words with abstract embeddins
-    clf =  LogisticRegression(max_iter=500).fit(train_abstracts, train_labels_df)
-    print(clf.score(test_abstracts, test_labels_df))
-    preds_prob = clf.predict_proba(test_abstracts)[:, 0]
-    print('MSE with probs', mean_squared_error(test_labels_df, preds_prob))
-    preds = clf.predict(test_abstracts)
-    print('MSE with labels', mean_squared_error(test_labels_df, preds))
-    print('Classification report:\n', classification_report(test_labels_df, preds))
-    print('#############################################')
+    if config['cv_explanation']:
+        X = pd.concat([train_bow, test_bow])
+        y = pd.concat([train_labels_df, test_labels_df])
+        preds = cross_validation.cross_val_predict(LogisticRegression(max_iter=500), X, y, cv=config['folds'])
+        print('MSE with labels', mean_squared_error(y, preds))
+        print('Classification report:\n', classification_report(y, preds))
+    else:
+        clf =  LogisticRegression(max_iter=500).fit(train_abstracts, train_labels_df)
+        print(clf.score(test_abstracts, test_labels_df))
+        preds_prob = clf.predict_proba(test_abstracts)[:, 0]
+        print('MSE with probs', mean_squared_error(test_labels_df, preds_prob))
+        preds = clf.predict(test_abstracts)
+        print('MSE with labels', mean_squared_error(test_labels_df, preds))
+        print('Classification report:\n', classification_report(test_labels_df, preds))
+        print('#############################################')
