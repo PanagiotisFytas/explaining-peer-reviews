@@ -14,8 +14,8 @@ else:
     device = torch.device("cpu")
 print(device)
 
-# cross_validation = False
-cross_validation = True
+cross_validation = False
+# cross_validation = True
 
 
 data_loader = DataLoader(device=device,
