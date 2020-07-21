@@ -91,7 +91,7 @@ def cramers_V(x, y):
 
 if __name__ == '__main__':
 
-    with open('config/lstm_att_classifier.yaml') as f:
+    with open('src/config/lstm_att_classifier.yaml') as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
 
 
