@@ -12,15 +12,7 @@ import pandas as pd
 import scipy.stats as ss
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import mean_squared_error, classification_report
-
-
-device_idx = input("GPU: ")
-GPU = True
-if GPU:
-    device = torch.device("cuda:" + device_idx if torch.cuda.is_available() else "cpu")
-else:
-    device = torch.device("cpu")
-print(device)
+import yaml
 
 
 def generate_lstm_explanations(model, reviews, embeddings, number_of_tokens):
@@ -98,8 +90,19 @@ def cramers_V(x, y):
 
 
 if __name__ == '__main__':
+
     with open('config/lstm_att_classifier.yaml') as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
+
+
+    device_idx = config['CUDA']
+    GPU = True
+    if GPU:
+        device = torch.device("cuda:" + device_idx if torch.cuda.is_available() else "cpu")
+    else:
+        device = torch.device("cpu")
+    print(device)
+
     # causal_layer = None | 'adversarial' | 'residual'
     causal_layer = config['causal_layer']
     lexicon_size = config['lexicon_size']

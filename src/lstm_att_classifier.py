@@ -14,7 +14,6 @@ with open('config/lstm_att_classifier.yaml') as f:
     config = yaml.load(f, Loader=yaml.FullLoader)
 
 print(config)
-exit()
 
 # device_idx = input("GPU: ")
 device_idx = config['CUDA']
@@ -31,11 +30,11 @@ folds = config['folds']
 
 # causal_layer = None
 # causal_layer = 'adversarial'
-causal_layer = config[causal_layer]
+causal_layer = config['causal_layer']
 
 # aspect = 'CLARITY'
 # aspect = 'ORIGINALITY'
-aspect = config[aspect]
+aspect = config['aspect']
 
 data_loader = LSTMEmbeddingLoader(device=device,
                                   lemmatise=True, 
