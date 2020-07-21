@@ -59,11 +59,11 @@ elif causal_layer == 'residual':
 _, _, embedding_dimension = embeddings_input.shape
 
 if causal_layer == 'residual':
-    epochs = 60 # 90 # 100 # 110 # 500
-    batch_size = 100 # 100 # 30
+    epochs = 90 # 60 # 100 # 110 # 500
+    batch_size = 30 # 100 # 30
     lr = 0.0001 # 0.0005
-    hidden_dimensions = [64] # [128, 64] # [128, 64] # [1500, 700, 300]
-    lstm_hidden_dimension = 60 # 30 # 300 # 500
+    hidden_dimensions = [32, 16] #[64] # [128, 64] # [128, 64] # [1500, 700, 300]
+    lstm_hidden_dimension = 120 # 30 # 300 # 500
     num_layers = 1  # Layers in the RN. Having more than 1 layer probably makes interpretability worst by combining more tokens into hiddent embs
     bidirectional = False
     cell_type = 'GRU'
