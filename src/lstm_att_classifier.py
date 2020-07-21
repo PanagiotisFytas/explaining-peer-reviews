@@ -46,10 +46,10 @@ except FileNotFoundError:
     data_loader.write_embeddings_to_file()
 
 
-number_of_tokens = torch.tensor([review.shape[0] for review in embeddings_input]).to(device)
-embeddings_input = rnn.pad_sequence(embeddings_input, batch_first=True).to(device)  # pad the reviews to form a tensor
+number_of_tokens = torch.tensor([review.shape[0] for review in embeddings_input])
+embeddings_input = rnn.pad_sequence(embeddings_input, batch_first=True) # pad the reviews to form a tensor
 print(embeddings_input.shape)
-labels = data_loader.read_labels().to(device)
+labels = data_loader.read_labels()
 if causal_layer == 'adversarial':
     # confounders = (data_loader.read_average_scores(aspect=aspect) > 2.5).to(device, dtype=torch.float)
     confounders = data_loader.read_average_scores(aspect=aspect).to(device, dtype=torch.float)
