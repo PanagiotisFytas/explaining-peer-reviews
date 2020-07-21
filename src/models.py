@@ -275,7 +275,7 @@ class AbstractClassifier(nn.Module):
 
 class LSTMAttentionClassifier(nn.Module):
     def __init__(self, device, input_size=768, lstm_hidden_size=500, num_layers=1, bidirectional=False, hidden_dimensions=[500],
-                 cell_type='GRU', causal_layer=None, causal_hidden_dimensions=[30, 20]):
+                 cell_type='GRU', causal_layer=None, causal_hidden_dimensions=[30, 20], att_dim=30):
         super(LSTMAttentionClassifier, self).__init__()
         self.device = device
         self.cell_type = cell_type
@@ -311,7 +311,8 @@ class LSTMAttentionClassifier(nn.Module):
         self.drop = nn.Dropout(0.2)
         self.activation = nn.ReLU()
         
-        self.att = nn.Linear(self.directions * lstm_hidden_size, 1, bias=False)
+        self.att1 = nn.Linear(self.directions * lstm_hidden_size, att_dim, bias=False)
+        self.att2 = nn.Linear(att_dim, 1, bias=False)
 
         self.causal_layer = causal_layer
         if causal_layer == 'adversarial':
@@ -385,7 +386,9 @@ class LSTMAttentionClassifier(nn.Module):
         
         mask = self.create_mask(output_lengths)
 
-        attention = self.att(out)
+        attention = self.att1(out)
+        attention = self.activation(out)
+        attention = self.att2(attention)
         # attention = self.activation(attention)
         # print('Mask: ', mask.shape)
         # print('Att layer output: ', attention.shape)

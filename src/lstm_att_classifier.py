@@ -63,11 +63,12 @@ if causal_layer == 'residual':
     batch_size = 30 # 100 # 30
     lr = 0.0001 # 0.0005
     hidden_dimensions = [32, 16] #[64] # [128, 64] # [128, 64] # [1500, 700, 300]
-    lstm_hidden_dimension = 120 # 30 # 300 # 500
+    lstm_hidden_dimension = 120 # 30 # 300 good performance bad conf # 120 # 500
     num_layers = 1  # Layers in the RN. Having more than 1 layer probably makes interpretability worst by combining more tokens into hiddent embs
     bidirectional = False
     cell_type = 'GRU'
     causal_hidden_dimensions = [64] # [64]
+    att_dim = 32
 else:
     epochs = 60 # 150 # 100 # 110 # 500
     batch_size = 30 # 100 # 30
@@ -78,6 +79,7 @@ else:
     bidirectional = False
     cell_type = 'GRU'
     causal_hidden_dimensions=[30, 20]
+    att_dim = 32
 
 if cross_validation:
     network = LSTMAttentionClassifier
@@ -90,7 +92,8 @@ if cross_validation:
         'hidden_dimensions': hidden_dimensions,
         'cell_type': cell_type,
         'causal_layer': causal_layer,
-        'causal_hidden_dimensions': causal_hidden_dimensions
+        'causal_hidden_dimensions': causal_hidden_dimensions,
+        'att_dim': att_dim
     }
     optimizer = torch.optim.Adam
     lr = lr
@@ -116,7 +119,8 @@ else:
                                     hidden_dimensions=hidden_dimensions,
                                     cell_type=cell_type,
                                     causal_layer=causal_layer,
-                                    causal_hidden_dimensions=causal_hidden_dimensions
+                                    causal_hidden_dimensions=causal_hidden_dimensions,
+                                    att_dim=att_dim,
                                    )
     shuffle = False
     valid_size = 0.1
