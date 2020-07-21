@@ -300,7 +300,7 @@ class LSTMAttentionClassifier(nn.Module):
             self.directions = 1
         if causal_layer and causal_layer == 'residual':
             # layer_input = lstm_hidden_size + 1
-            layer_input = lstm_hidden_size*2 # + causal_hidden_dimensions[-1]
+            layer_input = lstm_hidden_size + 768 # + causal_hidden_dimensions[-1]
         else:
             layer_input = lstm_hidden_size * self.directions
         self.fc_layers = nn.ModuleList([])
