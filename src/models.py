@@ -342,7 +342,7 @@ class LSTMAttentionClassifier(nn.Module):
     def forward(self, inp, lengths, abstract=None):
         # forward through the rnn and get the output of the rnn and the attention weights
         if self.causal_layer == 'residual':
-            confounding_out = self.residual_mlp_forward(abstract)
+            confounding_out, out_vector = self.residual_mlp_forward(abstract)
 
         attention, rnn_out = self.rnn_att_forward(inp, lengths)
         # print(attention.shape)
@@ -352,7 +352,8 @@ class LSTMAttentionClassifier(nn.Module):
 
         if self.causal_layer == 'residual':
             # print(rnn_out.shape, confounding_out.shape)
-            out = torch.cat([rnn_out, confounding_out], dim=1)
+            # out = torch.cat([rnn_out, confounding_out], dim=1)
+            out = torch.cat([rnn_out, out_vector], dim=1)
         else:
             out = rnn_out
         
@@ -418,7 +419,8 @@ class LSTMAttentionClassifier(nn.Module):
             out = self.drop2(out)
             out = layer(out)
             out = self.activation(out)
-        out = self.drop2(out)
+        out_vector = out
+        # out = self.drop2(out)
         out = self.causal_last_fc(out)
         out = self.sigmoid(out)
-        return out
+        return out, out_vector
