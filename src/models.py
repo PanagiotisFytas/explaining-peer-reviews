@@ -387,7 +387,7 @@ class LSTMAttentionClassifier(nn.Module):
         mask = self.create_mask(output_lengths)
 
         attention = self.att1(out)
-        attention = self.activation(out)
+        attention = self.activation(attention)
         attention = self.att2(attention)
         # attention = self.activation(attention)
         # print('Mask: ', mask.shape)
