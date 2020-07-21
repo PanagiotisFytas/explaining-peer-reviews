@@ -164,6 +164,7 @@ def training_loop(data, test_data, model, device, optimizer, loss_fn, confounder
     test_N, _, _ = test_embeddings.shape
     test_embeddings = test_embeddings.to(device)
     test_lengths = test_lengths.to(device)
+    test_labels = test_labels.to(device)
     if return_losses:
         train_losses = []
         test_losses = []
