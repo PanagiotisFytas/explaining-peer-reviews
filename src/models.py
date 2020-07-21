@@ -298,7 +298,10 @@ class LSTMAttentionClassifier(nn.Module):
             self.directions = 2
         else:
             self.directions = 1
-        layer_input = lstm_hidden_size * self.directions
+        if causal_layer and causal_layer == 'residual':
+            layer_input = lstm_hidden_size + 1
+        else:
+            layer_input = lstm_hidden_size * self.directions
         self.fc_layers = nn.ModuleList([])
         for layer_out in hidden_dimensions:
             self.fc_layers.append(nn.Linear(layer_input, layer_out))
@@ -306,13 +309,13 @@ class LSTMAttentionClassifier(nn.Module):
         self.last_fc = nn.Linear(layer_input, 1)
         self.sigmoid = nn.Sigmoid()
         self.drop = nn.Dropout(0.2)
-        self.activation = nn.Tanh()
+        self.activation = nn.ReLU()
         
         self.att = nn.Linear(self.directions * lstm_hidden_size, 1, bias=False)
 
         self.causal_layer = causal_layer
         if causal_layer == 'adversarial':
-            self.drop2 = nn.Dropout(0.5)
+            self.drop2 = nn.Dropout(0.2)
             layer_input = lstm_hidden_size * self.directions
             self.causal_layers = nn.ModuleList([])
             for layer_out in causal_hidden_dimensions:
@@ -321,37 +324,53 @@ class LSTMAttentionClassifier(nn.Module):
             self.causal_last_fc = nn.Linear(layer_input, 10) # regression as multiclass classification
             self.classes = torch.arange(1, 11).view(-1, 1).to(self.device, dtype=torch.float) # classes has shape 10, 1
             self.softmax = nn.Softmax()
-        
+        elif causal_layer == 'residual':
+            self.drop2 = nn.Dropout(0.2)
+            layer_input = input_size
+            self.causal_layers = nn.ModuleList([])
+            for layer_out in causal_hidden_dimensions:
+                self.causal_layers.append(nn.Linear(layer_input, layer_out))
+                layer_input = layer_out
+            self.causal_last_fc = nn.Linear(layer_input, 1)
 
     def create_mask(self, lengths):
         max_len = lengths.max()
         mask = (torch.arange(max_len).expand(len(lengths), max_len) < lengths.unsqueeze(1))
         return mask.unsqueeze(2).to(self.device, dtype=torch.int)
 
-    def forward(self, inp, lengths):
+    def forward(self, inp, lengths, abstract=None):
         # forward through the rnn and get the output of the rnn and the attention weights
+        if self.causal_layer == 'residual':
+            confounding_out = self.residual_mlp_forward(abstract)
+
         attention, rnn_out = self.rnn_att_forward(inp, lengths)
         # print(attention.shape)
         # pool the output of the rnn using attention
         rnn_out = torch.bmm(attention.transpose(1, 2), rnn_out).view(-1, self.lstm_hidden_size * self.directions)  # out should be batch_size x lstm_hidden_size
         # print(out.shape)
 
-        out = rnn_out
+        if self.causal_layer == 'residual':
+            out = torch.cat([rnn_out, confounding_out], dim=1)
+        else:
+            out = rnn_out
+        
         for layer in self.fc_layers:
+            out = self.drop(out)
             out = layer(out)
             out = self.activation(out)
-            out = self.drop(out)
+        out = self.drop(out)
 
         out = self.last_fc(out)
         out = self.sigmoid(out)
 
         if not self.causal_layer:
             return out
-
-        if self.causal_layer == 'adversarial':
-            causal_out = self.causal_mlp_forward(rnn_out)
-            return out, causal_out
-    
+        elif self.causal_layer == 'adversarial':
+            confounding_out = self.causal_mlp_forward(rnn_out)
+            return out, confounding_out
+        elif self.causal_layer == 'residual':
+            return out, confounding_out
+        
     def rnn_att_forward(self, inp, lengths):
         # seq, batch, embedding_dim = inp.shape
         out = rnn.pack_padded_sequence(inp, lengths, enforce_sorted=False, batch_first=True)  # no ONNX exportability
@@ -366,6 +385,7 @@ class LSTMAttentionClassifier(nn.Module):
         mask = self.create_mask(output_lengths)
 
         attention = self.att(out)
+        attention = self.activation(out)
         # print('Mask: ', mask.shape)
         # print('Att layer output: ', attention.shape)
         attention = attention.masked_fill(mask==0, -1e10)  # values of the mask (equal to 0) will become -10^10 so in softmax they are zero
@@ -386,4 +406,15 @@ class LSTMAttentionClassifier(nn.Module):
         # out = self.sigmoid(out)
         out = self.softmax(out)
         out = out.matmul(self.classes) # get weights average of age for regression
+        return out
+
+    def residual_mlp_forward(self, abstract):
+        out = abstract
+        for layer in self.causal_layers:
+            out = self.drop2(out)
+            out = layer(out)
+            out = self.activation(out)
+        out = self.drop2(out)
+        out = self.causal_last_fc(out)
+        out = self.sigmoid(out)
         return out

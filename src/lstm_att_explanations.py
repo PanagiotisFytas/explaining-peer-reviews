@@ -56,7 +56,7 @@ def generate_lstm_explanations(model, reviews, embeddings, number_of_tokens):
     return combined_words
                 
 
-def generate_bow_for_lexicon(explanation, reviews, k=50):
+def generate_bow_for_lexicon(explanation, reviews, k=20):
     '''
     :param explanation: a dataframe with the global explanations
     :param reviews: preprocessed reviews
@@ -99,11 +99,13 @@ def cramers_V(x, y):
 
 if __name__ == '__main__':
 
-    causal_layer = 'adversarial'
+    # causal_layer = None
+    # causal_layer = 'adversarial'
+    causal_layer = 'residual'
     if not causal_layer:
         clf_to_explain = 'lstm_att_classifier'
     else:
-        clf_to_explain = 'lstm_att_classifieradversarial'
+        clf_to_explain = 'lstm_att_classifier' + causal_layer
     # paths
     path = LSTMEmbeddingLoader.DATA_ROOT / clf_to_explain
     model_path = str(path / 'model.pt')
@@ -112,7 +114,7 @@ if __name__ == '__main__':
     data_loader = LSTMEmbeddingLoader(device=device,
                                     lemmatise=True, 
                                     lowercase=True, 
-                                    stopword_removal=False, 
+                                    remove_stopwords=False, 
                                     punctuation_removal=True,
                                     final_decision='only',
                                     pretrained_weights='scibert_scivocab_uncased',
@@ -126,6 +128,7 @@ if __name__ == '__main__':
     print(embeddings_input.shape)
     labels = data_loader.read_labels().to(device)
     _, _, embedding_dimension = embeddings_input.shape
+    abstracts = data_loader.read_abstract_embeddings()
 
 
     reviews = data_loader.read_reviews_only_text()
@@ -146,6 +149,7 @@ if __name__ == '__main__':
     test_embeddings_input = embeddings_input[test_idx, :, :]
     test_number_of_tokens = number_of_tokens[test_idx]
     test_labels = labels[test_idx]
+    test_abstracts = abstracts[test_idx]
 
     # train set
 
@@ -153,10 +157,12 @@ if __name__ == '__main__':
     train_embeddings_input = embeddings_input[train_idx, :, :]
     train_number_of_tokens = number_of_tokens[train_idx]
     train_labels = labels[train_idx]
+    train_abstracts = abstracts[train_idx]
 
     # load model
     model = torch.load(model_path)
     model.to(device)
+    model.device = device
 
     exp = generate_lstm_explanations(model, test_text_input, test_embeddings_input, test_number_of_tokens)
     # get explanation (and lexicon) from test set
@@ -169,10 +175,11 @@ if __name__ == '__main__':
 
     train_labels_df = pd.DataFrame(train_labels.to('cpu').numpy())
 
-    with pd.option_context('display.max_rows', None, 'display.max_columns', 8):
-        print(test_bow)
-        print(test_labels_df)
+    # with pd.option_context('display.max_rows', None, 'display.max_columns', 8):
+        # print(test_bow)
+        # print(test_labels_df)
     
+    print('###### LR on lexicon (no confounding): ######')
     clf =  LogisticRegression().fit(train_bow, train_labels_df)
     print(clf.score(test_bow, test_labels_df))
     preds_prob = clf.predict_proba(test_bow)[:, 0]
@@ -180,3 +187,35 @@ if __name__ == '__main__':
     preds = clf.predict(test_bow)
     print('MSE with labels', mean_squared_error(test_labels_df, preds))
     print('Classification report:\n', classification_report(test_labels_df, preds))
+    print('#############################################')
+
+    print('###### LR on lexicon (abstract conf.): ######')
+
+    # concatenate lexicon bag of words with abstract embeddins
+    train_bow = train_bow.to_numpy()
+    test_bow = test_bow.to_numpy()
+    train_abstracts = train_abstracts.to('cpu').numpy()
+    test_abstracts = test_abstracts.to('cpu').numpy()
+    train_bow = np.concatenate((train_bow, train_abstracts), axis=1)
+    test_bow = np.concatenate((test_bow, test_abstracts), axis=1)
+
+    clf =  LogisticRegression(max_iter=500).fit(train_bow, train_labels_df)
+    print(clf.score(test_bow, test_labels_df))
+    preds_prob = clf.predict_proba(test_bow)[:, 0]
+    print('MSE with probs', mean_squared_error(test_labels_df, preds_prob))
+    preds = clf.predict(test_bow)
+    print('MSE with labels', mean_squared_error(test_labels_df, preds))
+    print('Classification report:\n', classification_report(test_labels_df, preds))
+    print('#############################################')
+
+    print('############## LR on abstract: ##############')
+
+    # concatenate lexicon bag of words with abstract embeddins
+    clf =  LogisticRegression(max_iter=500).fit(train_abstracts, train_labels_df)
+    print(clf.score(test_abstracts, test_labels_df))
+    preds_prob = clf.predict_proba(test_abstracts)[:, 0]
+    print('MSE with probs', mean_squared_error(test_labels_df, preds_prob))
+    preds = clf.predict(test_abstracts)
+    print('MSE with labels', mean_squared_error(test_labels_df, preds))
+    print('Classification report:\n', classification_report(test_labels_df, preds))
+    print('#############################################')

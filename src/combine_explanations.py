@@ -9,7 +9,6 @@ import re
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 
 
-lemmatizer = WordNetLemmatizer()
 
 cols = ['Words', 'Mean', '#Total', '#Positive', '#Neg', 'PosMean', 'NegMean']
 final_decision = 'only'
@@ -138,6 +137,7 @@ def combine_explanations(clf_to_explain=clf_to_explain, criterion='abs'):
     """
     :param criterion: 'abs' | 'pos' | 'neg'
     """
+    lemmatizer = WordNetLemmatizer()
     path = DataLoader.DATA_ROOT / clf_to_explain
     explanation_files = [os.path.join(path, file) for file in os.listdir(path) if file.endswith('.p') and 'explanation' in file]
     explanation_files.sort(key=natural_sort_key)

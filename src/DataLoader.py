@@ -486,12 +486,12 @@ class PerReviewDataLoader(DataLoader):
 
 class PreProcessor:
     nlp = spacy.load('en_core_web_lg')
-    def __init__(self, final_decision='only', lemmatise=True, lowercase=True, stopword_removal=True, punctuation_removal=True):
+    def __init__(self, final_decision='only', lemmatise=True, lowercase=True, remove_stopwords=True, punctuation_removal=True):
         self.lemmatise = lemmatise
         self.lowercase = lowercase
-        self.stopword_removal = stopword_removal
+        self.remove_stopwords = remove_stopwords
         self.punctuation_removal = punctuation_removal
-        if self.stopword_removal:
+        if self.remove_stopwords:
             self.stopwords = stopwords.words('english')
         else:
             self.stopwords = []
@@ -525,18 +525,19 @@ class LSTMEmbeddingLoader(DataLoader):
     
     def __init__(self, device, model_class=BertModel, tokenizer_class=BertTokenizer, conference='iclr_2017', 
                  final_decision='only', pretrained_weights='bert-base-uncased', lemmatise=True, lowercase=True, 
-                 stopword_removal=True, punctuation_removal=True):
+                 remove_stopwords=True, punctuation_removal=True):
         
         self.meta_reviews = False
         self.full_reviews = False
         self.remove_duplicates = True
         self.allow_empty = False
+        self.truncate_policy = 'right'
 
         self.lemmatise = lemmatise
         self.lowercase = lowercase
-        self.stopword_removal = stopword_removal
+        self.remove_stopwords = remove_stopwords
         self.punctuation_removal = punctuation_removal
-        self.preprocessor = PreProcessor(lemmatise=lemmatise, lowercase=lowercase, stopword_removal=stopword_removal,
+        self.preprocessor = PreProcessor(lemmatise=lemmatise, lowercase=lowercase, remove_stopwords=remove_stopwords,
                                          final_decision=final_decision, punctuation_removal=punctuation_removal)
         
         self.conference = conference
@@ -581,6 +582,8 @@ class LSTMEmbeddingLoader(DataLoader):
         self.device = device
         self.labels = []
         self.scores = []
+        self.abstracts = []
+        self.abstract_embeddings = []
 
         # path for saving embeddings matrices
         self.path = self.DATA_ROOT / 'lstm_embeddings/' / self.conference / 'pre_trained' / self.get_dir_name()
@@ -601,14 +604,14 @@ class LSTMEmbeddingLoader(DataLoader):
             ret += '_lemmatise'
         if self.lowercase:
             ret += '_lowercase'
-        if self.stopword_removal:
+        if self.remove_stopwords:
             ret += '_stopwrod_removal'
         if self.punctuation_removal:
             ret += '_punctuation_removal'
         return ret
 
-    def reviews_to_embeddings(self, _):
-        raise Exception('Not Implemented')
+    # def reviews_to_embeddings(self, _):
+    #     raise Exception('Not Implemented')
 
     def tokenised_review_to_embeddings(self, review):
         batch_input_ids = self.tokenizer.batch_encode_plus(review, pad_to_max_length=True, return_tensors='pt')
