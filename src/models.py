@@ -350,7 +350,7 @@ class LSTMAttentionClassifier(nn.Module):
         # print(out.shape)
 
         if self.causal_layer == 'residual':
-            print(rnn_out.shape, confounding_out.shape)
+            # print(rnn_out.shape, confounding_out.shape)
             out = torch.cat([rnn_out, confounding_out], dim=1)
         else:
             out = rnn_out
