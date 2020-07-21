@@ -184,7 +184,7 @@ def training_loop(data, test_data, model, device, optimizer, loss_fn, confounder
             batch_y = labels[indices]
             batch_x = embeddings[indices, :, :]
             if causal_layer:
-                batch_confounders = confounders[indices]
+                batch_confounders = confounders[indices, :]
                 batch_confounders = batch_confounders.to(device)
             batch_x = batch_x.to(device)
             batch_y = batch_y.to(device)
