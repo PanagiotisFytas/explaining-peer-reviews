@@ -66,7 +66,7 @@ if causal_layer == 'residual':
     lstm_hidden_dimension = 120 # 30 # 300 good performance bad conf # 120 # 500
     num_layers = 1  # Layers in the RN. Having more than 1 layer probably makes interpretability worst by combining more tokens into hiddent embs
     bidirectional = False
-    cell_type = 'GRU'
+    cell_type = 'LSTM' # 'GRU'
     causal_hidden_dimensions = [64] # [64]
     att_dim = 32
 else:
