@@ -182,9 +182,13 @@ def training_loop(data, test_data, model, device, optimizer, loss_fn, confounder
 
             indices = permutation[i:i + batch_size]
             batch_y = labels[indices]
+            print('Emb ', embeddings.shape)
             batch_x = embeddings[indices, :, :]
+            print('BX ', batch_x.shape)
             if causal_layer:
+                print('C ', confounders.shape)
                 batch_confounders = confounders[indices, :]
+                print('BC ', batch_confounders.shape)
                 batch_confounders = batch_confounders.to(device)
             batch_x = batch_x.to(device)
             batch_y = batch_y.to(device)
