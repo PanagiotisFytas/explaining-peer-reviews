@@ -157,8 +157,7 @@ def training_loop(data, test_data, model, device, optimizer, loss_fn, confounder
     else:
         embeddings, lengths, labels, confounders = data
         test_embeddings, test_lengths, test_labels, test_confounders = test_data
-        if causal_layer == 'residual':
-            test_confounders = test_confounders.to(device)
+        test_confounders = test_confounders.to(device)
 
     N, _seq_len, input_size = embeddings.shape
     test_N, _, _ = test_embeddings.shape
@@ -188,7 +187,10 @@ def training_loop(data, test_data, model, device, optimizer, loss_fn, confounder
             # print('BX ', batch_x.shape)
             if causal_layer:
                 # print('C ', confounders.shape)
-                batch_confounders = confounders[indices, :]
+                if causal_layer == 'adversarial':
+                    batch_confounders = confounders[indices]
+                else:   
+                    batch_confounders = confounders[indices, :]
                 # print('BC ', batch_confounders.shape)
                 batch_confounders = batch_confounders.to(device)
             batch_x = batch_x.to(device)
@@ -221,8 +223,8 @@ def training_loop(data, test_data, model, device, optimizer, loss_fn, confounder
                 loss2 = confounder_loss_fn(confounder_preds, batch_confounders)
                 confounder_train_loss = loss2.item()
                 # total loss
-                loss = loss1 - 1 * loss2
-
+                # loss = loss1 - .1 * loss2
+                loss = loss1 + loss2
                 loss.backward()
                 
                 if return_losses:

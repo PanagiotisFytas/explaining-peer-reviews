@@ -133,8 +133,10 @@ if __name__ == '__main__':
     print(embeddings_input.shape)
     labels = data_loader.read_labels().to(device)
     _, _, embedding_dimension = embeddings_input.shape
-    abstracts = data_loader.read_abstract_embeddings()
-
+    if causal_layer == 'residual':
+        confounders = data_loader.read_abstract_embeddings()
+    elif causal_layer == 'adversarial':
+        confounders = data_loader.read_average_scores(aspect=config['aspect'])
 
     reviews = data_loader.read_reviews_only_text()
     text_input = np.array(data_loader.preprocessor.preprocess(reviews))
@@ -154,7 +156,8 @@ if __name__ == '__main__':
     test_embeddings_input = embeddings_input[test_idx, :, :]
     test_number_of_tokens = number_of_tokens[test_idx]
     test_labels = labels[test_idx]
-    test_abstracts = abstracts[test_idx]
+    if causal_layer:
+        test_confounders = confounders[test_idx]
 
     # train set
 
@@ -162,7 +165,8 @@ if __name__ == '__main__':
     train_embeddings_input = embeddings_input[train_idx, :, :]
     train_number_of_tokens = number_of_tokens[train_idx]
     train_labels = labels[train_idx]
-    train_abstracts = abstracts[train_idx]
+    if causal_layer:
+        train_confounders = confounders[train_idx]
 
     # load model
     model = torch.load(model_path)
@@ -201,48 +205,51 @@ if __name__ == '__main__':
         print('MSE with labels', mean_squared_error(test_labels_df, preds))
         print('Classification report:\n', classification_report(test_labels_df, preds))
     print('#############################################')
+    if causal_layer:
+        print('###### LR on lexicon (confounders conf.): ######')
 
-    print('###### LR on lexicon (abstract conf.): ######')
+        # concatenate lexicon bag of words with confounders embeddins
+        train_bow = train_bow.to_numpy()
+        test_bow = test_bow.to_numpy()
+        train_confounders = train_confounders.to('cpu').numpy()
+        test_confounders = test_confounders.to('cpu').numpy()
+        if causal_layer == 'adversarial':
+            train_confounders = np.expand_dims(train_confounders, axis=1)
+            test_confounders = np.expand_dims(test_confounders, axis=1)
+        train_bow = np.concatenate((train_bow, train_confounders), axis=1)
+        test_bow = np.concatenate((test_bow, test_confounders), axis=1)
+        print(train_bow.shape, test_bow.shape)
+        if config['cv_explanation']:
+            X = np.concatenate([train_bow, test_bow], axis=0)
+            y = np.concatenate([train_labels_df, test_labels_df], axis=0)
+            preds = cross_val_predict(LogisticRegression(max_iter=500), X, y, cv=config['folds'])
+            print('MSE with labels', mean_squared_error(y, preds))
+            print('Classification report:\n', classification_report(y, preds))
+        else:
+            clf =  LogisticRegression(max_iter=500).fit(train_bow, train_labels_df)
+            print(clf.score(test_bow, test_labels_df))
+            preds_prob = clf.predict_proba(test_bow)[:, 0]
+            print('MSE with probs', mean_squared_error(test_labels_df, preds_prob))
+            preds = clf.predict(test_bow)
+            print('MSE with labels', mean_squared_error(test_labels_df, preds))
+            print('Classification report:\n', classification_report(test_labels_df, preds))
+            print('#############################################')
 
-    # concatenate lexicon bag of words with abstract embeddins
-    train_bow = train_bow.to_numpy()
-    test_bow = test_bow.to_numpy()
-    train_abstracts = train_abstracts.to('cpu').numpy()
-    test_abstracts = test_abstracts.to('cpu').numpy()
-    train_bow = np.concatenate((train_bow, train_abstracts), axis=1)
-    test_bow = np.concatenate((test_bow, test_abstracts), axis=1)
-    print(train_bow.shape, test_bow.shape)
-    if config['cv_explanation']:
-        X = np.concatenate([train_bow, test_bow], axis=0)
-        y = np.concatenate([train_labels_df, test_labels_df], axis=0)
-        preds = cross_val_predict(LogisticRegression(max_iter=500), X, y, cv=config['folds'])
-        print('MSE with labels', mean_squared_error(y, preds))
-        print('Classification report:\n', classification_report(y, preds))
-    else:
-        clf =  LogisticRegression(max_iter=500).fit(train_bow, train_labels_df)
-        print(clf.score(test_bow, test_labels_df))
-        preds_prob = clf.predict_proba(test_bow)[:, 0]
-        print('MSE with probs', mean_squared_error(test_labels_df, preds_prob))
-        preds = clf.predict(test_bow)
-        print('MSE with labels', mean_squared_error(test_labels_df, preds))
-        print('Classification report:\n', classification_report(test_labels_df, preds))
-        print('#############################################')
+        print('############## LR on confounders: ##############')
 
-    print('############## LR on abstract: ##############')
-
-    # concatenate lexicon bag of words with abstract embeddins
-    if config['cv_explanation']:
-        X = np.concatenate([train_abstracts, test_abstracts], axis=0)
-        y = np.concatenate([train_labels_df, test_labels_df], axis=0)
-        preds = cross_val_predict(LogisticRegression(max_iter=500), X, y, cv=config['folds'])
-        print('MSE with labels', mean_squared_error(y, preds))
-        print('Classification report:\n', classification_report(y, preds))
-    else:
-        clf =  LogisticRegression(max_iter=500).fit(train_abstracts, train_labels_df)
-        print(clf.score(test_abstracts, test_labels_df))
-        preds_prob = clf.predict_proba(test_abstracts)[:, 0]
-        print('MSE with probs', mean_squared_error(test_labels_df, preds_prob))
-        preds = clf.predict(test_abstracts)
-        print('MSE with labels', mean_squared_error(test_labels_df, preds))
-        print('Classification report:\n', classification_report(test_labels_df, preds))
-        print('#############################################')
+        # concatenate lexicon bag of words with confounders embeddins
+        if config['cv_explanation']:
+            X = np.concatenate([train_confounders, test_confounders], axis=0)
+            y = np.concatenate([train_labels_df, test_labels_df], axis=0)
+            preds = cross_val_predict(LogisticRegression(max_iter=500), X, y, cv=config['folds'])
+            print('MSE with labels', mean_squared_error(y, preds))
+            print('Classification report:\n', classification_report(y, preds))
+        else:
+            clf =  LogisticRegression(max_iter=500).fit(train_confounders, train_labels_df)
+            print(clf.score(test_confounders, test_labels_df))
+            preds_prob = clf.predict_proba(test_confounders)[:, 0]
+            print('MSE with probs', mean_squared_error(test_labels_df, preds_prob))
+            preds = clf.predict(test_confounders)
+            print('MSE with labels', mean_squared_error(test_labels_df, preds))
+            print('Classification report:\n', classification_report(test_labels_df, preds))
+            print('#############################################')

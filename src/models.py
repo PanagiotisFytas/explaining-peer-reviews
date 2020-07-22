@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.utils.rnn as rnn
+from pytorch_revgrad import RevGrad
 
 
 class BasicGRUClassifier(nn.Module):
@@ -317,6 +318,7 @@ class LSTMAttentionClassifier(nn.Module):
 
         self.causal_layer = causal_layer
         if causal_layer == 'adversarial':
+            self.rev = RevGrad()
             self.drop2 = nn.Dropout(0.2)
             layer_input = lstm_hidden_size * self.directions
             self.causal_layers = nn.ModuleList([])
@@ -402,7 +404,7 @@ class LSTMAttentionClassifier(nn.Module):
         return attention, out
 
     def causal_mlp_forward(self, rnn_out):
-        out = rnn_out
+        out = self.rev(rnn_out)
         for layer in self.causal_layers:
             out = self.drop2(out)
             out = layer(out)
