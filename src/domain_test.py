@@ -23,6 +23,7 @@ for idx, paper_domains in enumerate(domains):
             count+=1
             has_prestigious_author[idx] = 1
             break
+has_prestigious_author.reshape(-1,1)
 print(count)
 
 valid_size = 0.1
