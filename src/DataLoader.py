@@ -9,6 +9,7 @@ import nltk
 from nltk.corpus import stopwords
 import spacy
 import numpy as np
+import operator
 
 
 '''
@@ -399,6 +400,32 @@ class DataLoader:
         print('Shape: ', self.abstract_embeddings.shape)
         return self.abstract_embeddings
 
+    def parsed_pdfs_from_review_files(self):
+        parsed_pdfs = []
+        for file in self.files:
+            parsed_pdfs.append(file.replace('reviews','parsed_pdfs').replace('.json','.pdf.json'))
+        return parsed_pdfs
+
+    def read_email_domains(self):
+        parsed_pdfs = self.parsed_pdfs_from_review_files()
+        email_domains = []
+        for file in parsed_pdfs:
+            with open(file) as json_file:
+                paper = json.load(json_file)
+                emails = paper['metadata']['emails']
+                domains = [email.split('@')[1] for email in emails]
+                email_domains.append(domains)
+        return email_domains
+        
+    def domain_counts(self, domains):
+        domain_counts = {}
+        for domain_per_paper in domains:
+            for domain in domain_per_paper:
+                if domain in domain_counts:
+                    domain_counts[domain] += 1
+                else:
+                    domain_counts[domain] = 1
+        return dict(sorted(domain_counts.items(), key=operator.itemgetter(1),reverse=True))
 
 class PerReviewDataLoader(DataLoader):
     BATCH_SIZE = 200
