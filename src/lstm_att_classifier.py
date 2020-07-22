@@ -59,7 +59,7 @@ print(embeddings_input.shape)
 labels = data_loader.read_labels()
 if causal_layer == 'adversarial':
     # confounders = (data_loader.read_average_scores(aspect=aspect) > 2.5).to(device, dtype=torch.float)
-    confounders = data_loader.read_average_scores(aspect=aspect).to(device, dtype=torch.float)
+    confounders = data_loader.read_average_scores(aspect=aspect)
 elif causal_layer == 'residual':
     confounders = data_loader.read_abstract_embeddings()
 
@@ -177,7 +177,7 @@ else:
         data = [embeddings_input, number_of_tokens, labels]
         test_data = [test_embeddings_input, test_number_of_tokens, test_labels]
     else:
-        confounding_loss_fn = nn.BCELoss()
+        confounding_loss_fn = nn.MSELoss() # nn.BCELoss()
         data = [embeddings_input, number_of_tokens, labels, confounders]
         test_data = [test_embeddings_input, test_number_of_tokens, test_labels, test_confounders]
 

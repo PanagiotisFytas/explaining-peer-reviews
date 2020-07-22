@@ -1,5 +1,5 @@
 CUDA: '0'
-causal_layer: residual
+causal_layer: adversarial
 aspect: RECOMMENDATION
 cross_validation: False
 cv_explanation: False
