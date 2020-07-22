@@ -1,0 +1,6 @@
+{
+    "python.envFile": "/home/pfytas/peer-review-classification/.env",
+    "python.linting.pylintEnabled": true,
+    "python.linting.enabled": true,
+    "python.pythonPath": "/data/pfytas/venv/bin/python",
+}

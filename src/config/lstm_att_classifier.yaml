@@ -1,10 +1,10 @@
 CUDA: '0'
-causal_layer: adversarial
+causal_layer: adversarial # null | adversarial | residual
 aspect: RECOMMENDATION
 cross_validation: False
 cv_explanation: False
 folds: 5
-lexicon_size: 100
+lexicon_size: 20
 residual:
     epochs: 100
     batch_size: 70 # 30
@@ -21,17 +21,17 @@ residual:
         - 128
     att_dim: 50
 not_residual:
-    epochs: 60
+    epochs: 90 # 50
     batch_size: 30
     lr: 0.0001
     hidden_dimensions:
         - 128
         - 64
     lstm_hidden_dimension: 300 # 30 # 300 good performance bad conf # 120 # 500
-    num_layers: 1  # Layers in the RN. Having more than 1 layer probably makes interpretability worst by combining more tokens into hiddent embs
+    num_layers: 1  # Layers in the RNN. Having more than 1 layer probably makes interpretability worst by combining more tokens into hiddent embs
     bidirectional: False
-    cell_type: 'LSTM' # 'GRU'
+    cell_type: 'GRU' # 'GRU'
     causal_hidden_dimensions: 
         - 30
         - 20 # [64]
-    att_dim: 32
+    att_dim: 160
