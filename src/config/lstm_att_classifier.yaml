@@ -21,17 +21,17 @@ residual:
         - 128
     att_dim: 50
 not_residual:
-    epochs: 90 # 50
+    epochs: 110 # 90 # 50
     batch_size: 30
     lr: 0.0001
     hidden_dimensions:
         - 128
         - 64
-    lstm_hidden_dimension: 300 # 30 # 300 good performance bad conf # 120 # 500
+    lstm_hidden_dimension: 160 # 30 # 300 good performance bad conf # 120 # 500
     num_layers: 1  # Layers in the RNN. Having more than 1 layer probably makes interpretability worst by combining more tokens into hiddent embs
     bidirectional: False
     cell_type: 'GRU' # 'GRU'
     causal_hidden_dimensions: 
         - 30
         - 20 # [64]
-    att_dim: 160
+    att_dim: 50
