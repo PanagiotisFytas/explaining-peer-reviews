@@ -189,6 +189,15 @@ if __name__ == '__main__':
         # print(test_bow)
         # print(test_labels_df)
     
+    if causal_layer == 'adversarial':
+        correlations = []
+        X = pd.concat([train_bow, test_bow])
+        y = pd.concat([train_labels_df, test_labels_df])
+        for word_idx in range(lexicon_size):
+            correlations.append(ss.pointbiserialr(X.iloc[:, word_idx]))
+        print("Average Correlation: ", np.mean(correlations))
+
+
     print('###### LR on lexicon (no confounding): ######')
     if config['cv_explanation']:
         X = pd.concat([train_bow, test_bow])
@@ -253,3 +262,5 @@ if __name__ == '__main__':
             print('MSE with labels', mean_squared_error(test_labels_df, preds))
             print('Classification report:\n', classification_report(test_labels_df, preds))
             print('#############################################')
+
+            
