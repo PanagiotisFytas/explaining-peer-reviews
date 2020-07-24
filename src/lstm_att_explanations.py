@@ -135,7 +135,7 @@ if __name__ == '__main__':
     _, _, embedding_dimension = embeddings_input.shape
     if causal_layer == 'residual':
         confounders = data_loader.read_abstract_embeddings()
-    elif causal_layer == 'adversarial':
+    else:
         confounders = data_loader.read_average_scores(aspect=config['aspect'])
 
     reviews = data_loader.read_reviews_only_text()
@@ -156,8 +156,7 @@ if __name__ == '__main__':
     test_embeddings_input = embeddings_input[test_idx, :, :]
     test_number_of_tokens = number_of_tokens[test_idx]
     test_labels = labels[test_idx]
-    if causal_layer:
-        test_confounders = confounders[test_idx]
+    test_confounders = confounders[test_idx]
 
     # train set
 
@@ -165,8 +164,7 @@ if __name__ == '__main__':
     train_embeddings_input = embeddings_input[train_idx, :, :]
     train_number_of_tokens = number_of_tokens[train_idx]
     train_labels = labels[train_idx]
-    if causal_layer:
-        train_confounders = confounders[train_idx]
+    train_confounders = confounders[train_idx]
 
     # load model
     model = torch.load(model_path)
@@ -189,7 +187,8 @@ if __name__ == '__main__':
         # print(test_bow)
         # print(test_labels_df)
     
-    if causal_layer == 'adversarial':
+    if not causal_layer == 'residual':
+        print('###############CORRELATION###################')    
         correlations = []
         X = pd.concat([train_bow, test_bow])
         y = confounders
@@ -197,8 +196,8 @@ if __name__ == '__main__':
             print(X.iloc[:, word_idx])
             print(y)
             correlations.append(ss.pointbiserialr(X.iloc[:, word_idx], y))
-        print("Average Correlation: ", np.mean(correlations))
-
+        print("Average PointBiserial Correlation: ", np.mean(correlations))
+        print('#############################################')
 
     print('###### LR on lexicon (no confounding): ######')
     if config['cv_explanation']:
