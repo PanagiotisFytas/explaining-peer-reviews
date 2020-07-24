@@ -203,7 +203,7 @@ else:
         plt.plot(train_losses, label='Train Loss')
         plt.plot(test_losses, label='Test Loss')
         plt.legend()
-        plt.savefig('/home/pfytas/losses.png')
+        plt.savefig('no_causal_losses.png')
         model_path = LSTMEmbeddingLoader.DATA_ROOT / 'lstm_att_classifier'
     else:
         train_losses, test_losses, confounding_train_losses, confounding_test_losses = losses
@@ -213,7 +213,7 @@ else:
         plt.plot(confounding_train_losses, label='Confounding Train Loss')
         plt.plot(confounding_test_losses, label='Confounding Test Loss')
         plt.legend()
-        plt.savefig('losses.png')
+        plt.savefig('causal_losses.png')
         model_path = LSTMEmbeddingLoader.DATA_ROOT / ('lstm_att_classifier' + causal_layer)
     model_path.mkdir(parents=True, exist_ok=True)
     torch.save(model, model_path / 'model.pt')
