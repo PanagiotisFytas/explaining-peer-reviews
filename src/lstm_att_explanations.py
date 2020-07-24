@@ -194,7 +194,7 @@ if __name__ == '__main__':
         X = pd.concat([train_bow, test_bow])
         y = pd.concat([train_labels_df, test_labels_df])
         for word_idx in range(lexicon_size):
-            correlations.append(ss.pointbiserialr(X.iloc[:, word_idx]))
+            correlations.append(ss.pointbiserialr(X.iloc[:, word_idx], y))
         print("Average Correlation: ", np.mean(correlations))
 
 
