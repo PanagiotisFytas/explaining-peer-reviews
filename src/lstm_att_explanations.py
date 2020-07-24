@@ -192,11 +192,11 @@ if __name__ == '__main__':
     if causal_layer == 'adversarial':
         correlations = []
         X = pd.concat([train_bow, test_bow])
-        y = pd.concat([train_labels_df, test_labels_df])
+        y = confounders
         for word_idx in range(lexicon_size):
             print(X.iloc[:, word_idx])
-            print(y.reset_index(drop=True, inplace=False))
-            correlations.append(ss.pointbiserialr(X.iloc[:, word_idx], y.reset_index(drop=True, inplace=False)))
+            print(y)
+            correlations.append(ss.pointbiserialr(X.iloc[:, word_idx], y))
         print("Average Correlation: ", np.mean(correlations))
 
 
