@@ -11,6 +11,7 @@ import spacy
 import numpy as np
 import operator
 from sklearn.datasets import load_svmlight_file
+import language_check
 
 '''
 0       get_most_recent_reference_year
@@ -532,6 +533,101 @@ class DataLoader:
             with open(file) as fp:
                 labels_str += fp.readline()
         return np.array(list(map(int, labels_str)))
+
+    def read_paper_text(self):
+        parsed_pdfs = self.parsed_pdfs_from_review_files()
+        papers_texts = []
+        for file in parsed_pdfs:
+            with open(file) as json_file:
+                paper = json.load(json_file)
+                sections = paper['metadata']['sections']
+                sections_in_paper = []
+                try:
+                    for section in sections:
+                        if section['heading']:
+                            sections_in_paper.append(section['heading'])
+                        if section['text']:
+                            sections_in_paper.append(section['text'])
+                    papers_texts.append(sections_in_paper)
+                except TypeError:
+                    # No text exists in the paper json
+                    # Will dummy value to impute with the average value
+                    papers_texts.append([])
+        return papers_texts
+
+    def detect_errors(self, papers_texts, abstracts):
+        tool = language_check.LanguageTool('en-US')
+        errors_per_paper = []
+        words_per_paper = []
+        ids_to_impute = []
+        total_errors = 0
+        total_words = 0
+        for idx, section_in_paper in enumerate(papers_texts):
+            print('IDX ', idx)
+            if not section_in_paper:
+                print('This will be imputed')
+                errors = -1 # dummy value, will be imputed
+                words = -1
+                ids_to_impute.append(idx)
+            else:
+                errors = 0
+                words = 0
+                for text in section_in_paper:
+                    errors += len(tool.check(text))
+                    total_errors += errors
+                    words += len(text.split())
+                    total_words += words
+                print('Errors ', errors)
+                print('Words', words)
+            errors_per_paper.append(errors)
+            words_per_paper.append(words)
+        mean_errors_per_paper = round(total_errors / (len(papers_texts) - len(ids_to_impute)))
+        mean_words_per_paper = round(total_words / (len(papers_texts) - len(ids_to_impute)))
+        # impute
+        for idx in ids_to_impute:
+            assert(errors_per_paper[idx] == -1)
+            assert(words_per_paper[idx] == -1)
+            errors_per_paper[idx] = mean_errors_per_paper
+            words_per_paper[idx] = mean_words_per_paper
+        # calculate errors in abstract
+        abstract_errors = []
+        abstract_words = []
+        for abstract_text in abstracts:
+            abstract_errors.append(len(tool.check(abstract_text)))
+            abstract_words.append(len(abstract_text.split()))
+        return torch.tensor(errors_per_paper, dtype=torch.float),\
+                torch.tensor(abstract_errors, dtype=torch.float),\
+                torch.tensor(words_per_paper, dtype=torch.float),\
+                torch.tensor(abstract_words, dtype=torch.float)
+
+    def read_errors(self):
+        try:
+            paper_errors = torch.load(self.DATA_ROOT / ('paper_errors.pt'))
+            abstract_errors = torch.load(self.DATA_ROOT / ('abstract_errors.pt'))
+            paper_words = torch.load(self.DATA_ROOT / ('paper_words.pt'))
+            abstract_words = torch.load(self.DATA_ROOT / ('abstract_words.pt'))
+        except FileNotFoundError:
+            if self.abstracts:
+                abstracts = self.abstracts
+            else:
+                abstracts = self.read_abstracts_text()
+            paper_text = self.read_paper_text()
+            paper_errors, abstract_errors, paper_words, abstract_words = self.detect_errors(paper_text, abstracts)
+            torch.save(paper_errors, self.DATA_ROOT / ('paper_errors.pt'))
+            torch.save(abstract_errors, self.DATA_ROOT / ('abstract_errors.pt'))
+            torch.save(paper_words, self.DATA_ROOT / ('paper_words.pt'))
+            torch.save(abstract_words, self.DATA_ROOT / ('abstract_words.pt'))
+
+        return paper_errors, abstract_errors, paper_words, abstract_words
+        '''
+        ## TO read handcrafted_features and errors:
+        from DataLoader import DataLoader
+        d = DataLoader('cpu')
+        d.read_labels().shape
+        feat = d.read_handcrafted_features()
+        perr, aerr, pwor, awor = d.read_errors()
+        '''
+
 
 
 class PerReviewDataLoader(DataLoader):
