@@ -496,7 +496,8 @@ class DataLoader:
             dev_labels_file = dev_path /labels_file_name
             labels = self.read_labels_from_feature_file([train_labels_file, test_labels_file, dev_labels_file])
             labels = torch.tensor(labels, dtype=torch.float)[fixed_ids]
-            assert torch.all(torch.eq(labels, self.labels))
+            assert torch.all(torch.eq(labels,
+                                      torch.tensor(self.labels, dtype=torch.float)))
 
         return torch.tensor(data[fixed_ids], dtype=torch.float)
         # self.files = test_files + dev_files + train_files
@@ -924,8 +925,10 @@ class LSTMPerReviewDataLoader(LSTMEmbeddingLoader):
             self.path = self.DATA_ROOT / 'lstm_per_review_embeddings'/ aspect / self.conference / 'pre_trained' / self.get_dir_name()
             
         self.aspect_scores = []
+        self.labels = []
         self.aspect = aspect
         self.recommendation_scores = []
+        self.peer_review_to_paper_ids = []
     
     def exclude(self, review):
         # exclude empty reviews and final decision if specified
@@ -942,6 +945,7 @@ class LSTMPerReviewDataLoader(LSTMEmbeddingLoader):
             with open(file) as json_file:
                 full_reviews = json.load(json_file)
                 reviews_for_specific_paper = []
+                self.labels.append(full_reviews['accepted'])
                 for review in full_reviews['reviews']:
                     if self.exclude(review):
                         continue
@@ -952,6 +956,7 @@ class LSTMPerReviewDataLoader(LSTMEmbeddingLoader):
                             reviews_for_specific_paper.append(review['comments'])
                             self.paper_reviews.append(review['comments'])
                             self.recommendation_scores.append(review['RECOMMENDATION'])
+                            self.peer_review_to_paper_ids.append(i)
                             if self.aspect:
                                 self.aspect_scores.append(review[self.aspect])
 
@@ -963,6 +968,11 @@ class LSTMPerReviewDataLoader(LSTMEmbeddingLoader):
     def read_labels(self):
         return (torch.tensor(self.recommendation_scores) > 5).float()
 
+    def copy_to_peer_review(self, features):
+        copied_features = []
+        for idx in self.peer_review_to_paper_ids:
+            copied_features.append(features[idx])
+        return np.stack(copied_features)
 
 if __name__ == '__main__':
     device_idx = input("GPU: ")

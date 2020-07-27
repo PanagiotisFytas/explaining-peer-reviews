@@ -8,9 +8,15 @@ from models import LSTMAttentionClassifier
 import pathlib
 import os
 import matplotlib.pyplot as plt
+import yaml
 
+with open('src/config/lstm_att_classifier_per_review.yaml') as f:
+    config = yaml.load(f, Loader=yaml.FullLoader)
 
-device_idx = input("GPU: ")
+print(config)
+
+# device_idx = input("GPU: ")
+device_idx = config['CUDA']
 GPU = True
 if GPU:
     device = torch.device("cuda:" + device_idx if torch.cuda.is_available() else "cpu")
@@ -18,15 +24,18 @@ else:
     device = torch.device("cpu")
 print(device)
 
-cross_validation = False
+cross_validation = config['cross_validation']
+folds = config['folds']
 # cross_validation = True
-causal_layer = None
-causal_layer = 'adversarial'
+
+# causal_layer = None
+# causal_layer = 'adversarial'
+causal_layer = config['causal_layer']
 
 # aspect = 'CLARITY'
-# aspect = None
-aspect = 'ORIGINALITY'
-# aspect = 'RECOMMENDATION'
+# aspect = 'ORIGINALITY'
+aspect = config['aspect']
+
 
 data_loader = LSTMPerReviewDataLoader(device=device,
                                       lemmatise=True, 
@@ -47,32 +56,31 @@ except FileNotFoundError:
     data_loader.write_embeddings_to_file()
 
 
-number_of_tokens = torch.tensor([review.shape[0] for review in embeddings_input]).to(device)
-
-# number_of_tokens2 = (number_of_tokens>512).to('cpu').numpy()
-
-# number_of_tokens2 = sorted(number_of_tokens2, reverse=True)
-
-# print(number_of_tokens2)
-# print(np.count_nonzero(number_of_tokens2))
-
-
+number_of_tokens = torch.tensor([review.shape[0] for review in embeddings_input])
 embeddings_input = rnn.pad_sequence(embeddings_input, batch_first=True)  # pad the reviews to form a tensor
 print(embeddings_input.shape)
-labels = data_loader.read_labels().to(device)
+labels = data_loader.read_labels()
 if causal_layer:
-    scores = data_loader.read_aspect_scores().to(device, dtype=torch.float)
+    scores = data_loader.read_aspect_scores().to(dtype=torch.float)
 
 _, _, embedding_dimension = embeddings_input.shape
 
-epochs = 110 # 150 # 100 # 110 # 500
-batch_size = 150 # 100 # 30
-lr = 0.0005 # 0.0001
-hidden_dimensions = [128, 64] # [128, 64] # [1500, 700, 300]
-lstm_hidden_dimension = 30 # 300 # 500
-num_layers = 1  # Layers in the RN. Having more than 1 layer probably makes interpretability worst by combining more tokens into hiddent embs
-bidirectional = False
-cell_type = 'GRU'
+if causal_layer == 'residual':
+    nn_conf = config[causal_layer]
+else:
+    nn_conf = config['not_residual']
+
+epochs = nn_conf['epochs'] # 60 # 100 # 110 # 500
+batch_size = nn_conf['batch_size'] # 100 # 30
+lr = nn_conf['lr'] # 0.0005
+hidden_dimensions = nn_conf['hidden_dimensions'] #[64] # [128, 64] # [128, 64] # [1500, 700, 300]
+lstm_hidden_dimension = nn_conf['lstm_hidden_dimension'] # 30 # 300 good performance bad conf # 120 # 500
+num_layers = nn_conf['num_layers']  # Layers in the RN. Having more than 1 layer probably makes interpretability worst by combining more tokens into hiddent embs
+bidirectional = nn_conf['bidirectional']
+cell_type = nn_conf['cell_type'] # 'GRU'
+causal_hidden_dimensions = nn_conf['causal_hidden_dimensions'] # [64]
+att_dim = nn_conf['att_dim']
+
 
 if cross_validation:
     network = LSTMAttentionClassifier

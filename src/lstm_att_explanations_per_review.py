@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.utils.rnn as rnn
-from DataLoader import LSTMEmbeddingLoader
+from DataLoader import LSTMPerReviewDataLoader
 import numpy as np
 from helper_functions import training_loop, cross_validation_metrics
 from models import LSTMAttentionClassifier
@@ -45,7 +45,7 @@ def generate_lstm_explanations(model, reviews, embeddings, number_of_tokens):
     combined_words = combined_words.reindex(pos_df.sort_values('Mean', ascending=False).index)
 
     with pd.option_context('display.max_rows', None, 'display.max_columns', None):
-        print(combined_words)
+        print(combined_words.head(200))
     return combined_words
                 
 
@@ -92,7 +92,7 @@ def cramers_V(x, y):
 
 if __name__ == '__main__':
 
-    with open('src/config/lstm_att_classifier.yaml') as f:
+    with open('src/config/lstm_att_classifier_per_review.yaml') as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
 
 
@@ -112,38 +112,41 @@ if __name__ == '__main__':
     else:
         clf_to_explain = 'lstm_att_classifier' + causal_layer
     # paths
-    path = LSTMEmbeddingLoader.DATA_ROOT / clf_to_explain
+    path = LSTMPerReviewDataLoader.DATA_ROOT / clf_to_explain
     model_path = str(path / 'model.pt')
 
 
-    data_loader = LSTMEmbeddingLoader(device=device,
-                                    lemmatise=True, 
-                                    lowercase=True, 
-                                    remove_stopwords=False, 
-                                    punctuation_removal=True,
-                                    final_decision='only',
-                                    pretrained_weights='scibert_scivocab_uncased',
-                                    )
+    data_loader = LSTMPerReviewDataLoader(device=device,
+                                          lemmatise=True, 
+                                          lowercase=True, 
+                                          remove_stopwords=False, 
+                                          punctuation_removal=True,
+                                          final_decision='exclude',
+                                          pretrained_weights='scibert_scivocab_uncased',
+                                          )
 
     embeddings_input = data_loader.read_embeddigns_from_file()
-
+    reviews = data_loader.read_reviews_only_text()
 
     number_of_tokens = torch.tensor([review.shape[0] for review in embeddings_input]).to(device)
-    embeddings_input = rnn.pad_sequence(embeddings_input, batch_first=True).to(device)  # pad the reviews to form a tensor
+    embeddings_input = rnn.pad_sequence(embeddings_input, batch_first=True)  # pad the reviews to form a tensor
     print(embeddings_input.shape)
     labels = data_loader.read_labels().to(device)
     _, _, embedding_dimension = embeddings_input.shape
     if causal_layer == 'residual':
         confounders = data_loader.read_abstract_embeddings()
     else:
-        confounders = data_loader.read_average_scores(aspect=config['aspect'])
+        confounders = data_loader.read_handcrafted_features()
+        #confounders = data_loader.read_average_scores(aspect=config['aspect'])
 
-    reviews = data_loader.read_reviews_only_text()
+    confounders = data_loader.copy_to_peer_review(confounders)
+
     text_input = np.array(data_loader.preprocessor.preprocess(reviews))
 
     valid_size = 0.1
 
     num_train = len(text_input)
+    print('Textinput', text_input.shape)
     indices = list(range(num_train))
     split = int(np.floor(valid_size * num_train))
 
@@ -155,12 +158,15 @@ if __name__ == '__main__':
     test_text_input = text_input[test_idx]
     test_embeddings_input = embeddings_input[test_idx, :, :]
     test_number_of_tokens = number_of_tokens[test_idx]
+    print(labels)
+    print(labels.shape)
     test_labels = labels[test_idx]
     test_confounders = confounders[test_idx]
 
     # train set
 
     train_text_input = text_input[train_idx]
+    print(indices)
     train_embeddings_input = embeddings_input[train_idx, :, :]
     train_number_of_tokens = number_of_tokens[train_idx]
     train_labels = labels[train_idx]
@@ -171,6 +177,7 @@ if __name__ == '__main__':
     model.to(device)
     model.device = device
 
+    test_embeddings_input = test_embeddings_input.to(device)
     exp = generate_lstm_explanations(model, test_text_input, test_embeddings_input, test_number_of_tokens)
     # get explanation (and lexicon) from test set
 
@@ -192,8 +199,10 @@ if __name__ == '__main__':
         correlations = []
         X = pd.concat([train_bow, test_bow])
         y = confounders
+        _, number_of_features = y.shape
         for word_idx in range(lexicon_size):
-            correlations.append(ss.pointbiserialr(X.iloc[:, word_idx], y))
+            for feature in range(number_of_features):
+                correlations.append(ss.pointbiserialr(X.iloc[:, word_idx], y[:, feature]))
         print("Average PointBiserial Correlation: ", np.mean(correlations))
         print('#############################################')
 
@@ -213,53 +222,53 @@ if __name__ == '__main__':
         print('MSE with labels', mean_squared_error(test_labels_df, preds))
         print('Classification report:\n', classification_report(test_labels_df, preds))
     print('#############################################')
-    if causal_layer:
-        print('###### LR on lexicon (confounders conf.): ######')
 
-        # concatenate lexicon bag of words with confounders embeddins
-        train_bow = train_bow.to_numpy()
-        test_bow = test_bow.to_numpy()
-        train_confounders = train_confounders.to('cpu').numpy()
-        test_confounders = test_confounders.to('cpu').numpy()
-        if causal_layer == 'adversarial':
-            train_confounders = np.expand_dims(train_confounders, axis=1)
-            test_confounders = np.expand_dims(test_confounders, axis=1)
-        train_bow = np.concatenate((train_bow, train_confounders), axis=1)
-        test_bow = np.concatenate((test_bow, test_confounders), axis=1)
-        print(train_bow.shape, test_bow.shape)
-        if config['cv_explanation']:
-            X = np.concatenate([train_bow, test_bow], axis=0)
-            y = np.concatenate([train_labels_df, test_labels_df], axis=0)
-            preds = cross_val_predict(LogisticRegression(max_iter=500), X, y, cv=config['folds'])
-            print('MSE with labels', mean_squared_error(y, preds))
-            print('Classification report:\n', classification_report(y, preds))
-        else:
-            clf =  LogisticRegression(max_iter=500).fit(train_bow, train_labels_df)
-            print(clf.score(test_bow, test_labels_df))
-            preds_prob = clf.predict_proba(test_bow)[:, 0]
-            print('MSE with probs', mean_squared_error(test_labels_df, preds_prob))
-            preds = clf.predict(test_bow)
-            print('MSE with labels', mean_squared_error(test_labels_df, preds))
-            print('Classification report:\n', classification_report(test_labels_df, preds))
-            print('#############################################')
+    print('###### LR on lexicon (confounders conf.): ######')
 
-        print('############## LR on confounders: ##############')
+    # concatenate lexicon bag of words with confounders embeddins
+    train_bow = train_bow.to_numpy()
+    test_bow = test_bow.to_numpy()
+    train_confounders = train_confounders
+    test_confounders = test_confounders
+    # if causal_layer == 'adversarial':
+    #     train_confounders = np.expand_dims(train_confounders, axis=1)
+    #     test_confounders = np.expand_dims(test_confounders, axis=1)
+    train_bow = np.concatenate((train_bow, train_confounders), axis=1)
+    test_bow = np.concatenate((test_bow, test_confounders), axis=1)
+    print(train_bow.shape, test_bow.shape)
+    if config['cv_explanation']:
+        X = np.concatenate([train_bow, test_bow], axis=0)
+        y = np.concatenate([train_labels_df, test_labels_df], axis=0)
+        preds = cross_val_predict(LogisticRegression(max_iter=500), X, y, cv=config['folds'])
+        print('MSE with labels', mean_squared_error(y, preds))
+        print('Classification report:\n', classification_report(y, preds))
+    else:
+        clf =  LogisticRegression(max_iter=500).fit(train_bow, train_labels_df)
+        print(clf.score(test_bow, test_labels_df))
+        preds_prob = clf.predict_proba(test_bow)[:, 0]
+        print('MSE with probs', mean_squared_error(test_labels_df, preds_prob))
+        preds = clf.predict(test_bow)
+        print('MSE with labels', mean_squared_error(test_labels_df, preds))
+        print('Classification report:\n', classification_report(test_labels_df, preds))
+        print('#############################################')
 
-        # concatenate lexicon bag of words with confounders embeddins
-        if config['cv_explanation']:
-            X = np.concatenate([train_confounders, test_confounders], axis=0)
-            y = np.concatenate([train_labels_df, test_labels_df], axis=0)
-            preds = cross_val_predict(LogisticRegression(max_iter=500), X, y, cv=config['folds'])
-            print('MSE with labels', mean_squared_error(y, preds))
-            print('Classification report:\n', classification_report(y, preds))
-        else:
-            clf =  LogisticRegression(max_iter=500).fit(train_confounders, train_labels_df)
-            print(clf.score(test_confounders, test_labels_df))
-            preds_prob = clf.predict_proba(test_confounders)[:, 0]
-            print('MSE with probs', mean_squared_error(test_labels_df, preds_prob))
-            preds = clf.predict(test_confounders)
-            print('MSE with labels', mean_squared_error(test_labels_df, preds))
-            print('Classification report:\n', classification_report(test_labels_df, preds))
-            print('#############################################')
+    print('############## LR on confounders: ##############')
+
+    # concatenate lexicon bag of words with confounders embeddins
+    if config['cv_explanation']:
+        X = np.concatenate([train_confounders, test_confounders], axis=0)
+        y = np.concatenate([train_labels_df, test_labels_df], axis=0)
+        preds = cross_val_predict(LogisticRegression(max_iter=500), X, y, cv=config['folds'])
+        print('MSE with labels', mean_squared_error(y, preds))
+        print('Classification report:\n', classification_report(y, preds))
+    else:
+        clf =  LogisticRegression(max_iter=1000).fit(train_confounders, train_labels_df)
+        print(clf.score(test_confounders, test_labels_df))
+        preds_prob = clf.predict_proba(test_confounders)[:, 0]
+        print('MSE with probs', mean_squared_error(test_labels_df, preds_prob))
+        preds = clf.predict(test_confounders)
+        print('MSE with labels', mean_squared_error(test_labels_df, preds))
+        print('Classification report:\n', classification_report(test_labels_df, preds))
+        print('#############################################')
 
             
