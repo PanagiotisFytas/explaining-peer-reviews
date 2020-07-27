@@ -43,3 +43,19 @@ python src/basic_GRU_Classifier.py
 ```
 Those scrips need to be executed from the ROOT directory of 
 the project.
+
+# Get Features from PeerRead
+
+Run on Python:
+
+```Python
+import nltk
+nltk.download('punkt')
+```
+
+Run on bash:
+
+```bash
+cd $DATA/PeerRead/code/accept_classify/
+./run_featurize_classify.sh
+```

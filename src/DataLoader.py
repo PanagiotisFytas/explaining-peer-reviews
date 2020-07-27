@@ -10,7 +10,37 @@ from nltk.corpus import stopwords
 import spacy
 import numpy as np
 import operator
+from sklearn.datasets import load_svmlight_file
+import language_check
 
+'''
+0       get_most_recent_reference_year
+1       get_num_references
+2       get_num_refmentions
+3       get_avg_length_reference_mention_contexts
+4       abstract_contains_deep
+5       abstract_contains_neural
+6       abstract_contains_embedding
+7       abstract_contains_outperform
+8       abstract_contains_novel
+9       abstract_contains_state_of_the_art
+10      abstract_contains_state-of-the-art
+11      get_num_recent_references
+12      get_num_ref_to_figures
+13      get_num_ref_to_tables
+14      get_num_ref_to_sections
+15      get_num_uniq_words
+16      get_num_sections
+17      get_avg_sentence_length
+18      get_contains_appendix
+19      proportion_of_frequent_words
+20      get_title_length
+21      get_num_authors
+22      get_num_ref_to_equations
+23      get_num_ref_to_theorems
+'''
+
+features_to_use = [1, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22, 23]
 
 '''
 Those are the following fields of the json review
@@ -367,6 +397,15 @@ class DataLoader:
         # self.abstracts = torch.tensor(self.abstracts, dtype=torch.float)
         return self.abstracts
 
+    def read_titles(self):
+        titles = []
+        for i, file in enumerate(self.files):
+            with open(file) as json_file:
+                full_reviews = json.load(json_file)
+            titles.append(full_reviews['title'])
+        # self.abstracts = torch.tensor(self.abstracts, dtype=torch.float)
+        return titles
+
     def _read_abstract_embeddigns_from_file(self, abstract_path):
         files = [os.path.join(abstract_path, file) for file in os.listdir(abstract_path) if file.endswith('.pt') and 'abstract_' in file]
         # natural ordering sort so when I keep the order of the papers from PeerRead. This preserves the order for
@@ -426,6 +465,170 @@ class DataLoader:
                 else:
                     domain_counts[domain] = 1
         return dict(sorted(domain_counts.items(), key=operator.itemgetter(1),reverse=True))
+
+    def read_handcrafted_features(self, test_order=True):
+        # if test_order=True, read_labels must have been called first
+        train_path = self.DATA_ROOT / ('PeerRead/data/' + self.conference) / 'train/dataset'
+        test_path = self.DATA_ROOT / ('PeerRead/data/' + self.conference) / 'test/dataset'
+        dev_path = self.DATA_ROOT / ('PeerRead/data/' + self.conference) / 'dev/dataset'
+        features_file_name = 'features.svmlite_30000_False_True.txt'
+        train_data = self.read_features_from_file(train_path / features_file_name)
+        test_data = self.read_features_from_file(test_path / features_file_name)
+        dev_data = self.read_features_from_file(dev_path / features_file_name)
+        
+        ids_file_name = 'ids_30000_False_True.tsv'
+        train_ids_file = train_path / ids_file_name
+        test_ids_file = test_path / ids_file_name
+        dev_ids_file = dev_path / ids_file_name
+
+        title_to_idx = self.generate_ids_dict([train_ids_file, test_ids_file, dev_ids_file])
+
+        titles = self.read_titles()
+
+        data = np.concatenate([train_data, test_data, dev_data], axis=0)
+        fixed_ids = self.fix_feature_order(title_to_idx, titles)
+
+        if test_order:
+            # assert sequence is corrected
+            labels_file_name = 'labels_30000_False_True.tsv'
+            train_labels_file = train_path / labels_file_name
+            test_labels_file = test_path / labels_file_name
+            dev_labels_file = dev_path /labels_file_name
+            labels = self.read_labels_from_feature_file([train_labels_file, test_labels_file, dev_labels_file])
+            labels = torch.tensor(labels, dtype=torch.float)[fixed_ids]
+            assert torch.all(torch.eq(labels, self.labels))
+
+        return torch.tensor(data[fixed_ids], dtype=torch.float)
+        # self.files = test_files + dev_files + train_files
+
+    @staticmethod
+    def read_features_from_file(file):
+        sparse_data = load_svmlight_file(str(file))
+        data = np.array(sparse_data[0].todense())
+        return data[:, features_to_use]
+
+    @staticmethod
+    def fix_feature_order(title_to_idx, titles):
+        fixed_ids = []
+        for title in titles:
+            fixed_ids.append(title_to_idx[title])
+        return fixed_ids
+
+    @staticmethod
+    def generate_ids_dict(files):
+        title_to_idx = {}
+        idx = 0
+        for file in files:
+            with open(file) as fp:
+                for line in fp:
+                    _, title = line.rstrip('\n').split('\t')
+                    title_to_idx[title] = idx
+                    idx += 1
+        return title_to_idx
+
+    @staticmethod
+    def read_labels_from_feature_file(files):
+        labels_str = ''
+        for file in files:
+            with open(file) as fp:
+                labels_str += fp.readline()
+        return np.array(list(map(int, labels_str)))
+
+    def read_paper_text(self):
+        parsed_pdfs = self.parsed_pdfs_from_review_files()
+        papers_texts = []
+        for file in parsed_pdfs:
+            with open(file) as json_file:
+                paper = json.load(json_file)
+                sections = paper['metadata']['sections']
+                sections_in_paper = []
+                try:
+                    for section in sections:
+                        if section['heading']:
+                            sections_in_paper.append(section['heading'])
+                        if section['text']:
+                            sections_in_paper.append(section['text'])
+                    papers_texts.append(sections_in_paper)
+                except TypeError:
+                    # No text exists in the paper json
+                    # Will dummy value to impute with the average value
+                    papers_texts.append([])
+        return papers_texts
+
+    def detect_errors(self, papers_texts, abstracts):
+        tool = language_check.LanguageTool('en-US')
+        errors_per_paper = []
+        words_per_paper = []
+        ids_to_impute = []
+        total_errors = 0
+        total_words = 0
+        for idx, section_in_paper in enumerate(papers_texts):
+            print('IDX ', idx)
+            if not section_in_paper:
+                print('This will be imputed')
+                errors = -1 # dummy value, will be imputed
+                words = -1
+                ids_to_impute.append(idx)
+            else:
+                errors = 0
+                words = 0
+                for text in section_in_paper:
+                    errors += len(tool.check(text))
+                    total_errors += errors
+                    words += len(text.split())
+                    total_words += words
+                print('Errors ', errors)
+                print('Words', words)
+            errors_per_paper.append(errors)
+            words_per_paper.append(words)
+        mean_errors_per_paper = round(total_errors / (len(papers_texts) - len(ids_to_impute)))
+        mean_words_per_paper = round(total_words / (len(papers_texts) - len(ids_to_impute)))
+        # impute
+        for idx in ids_to_impute:
+            assert(errors_per_paper[idx] == -1)
+            assert(words_per_paper[idx] == -1)
+            errors_per_paper[idx] = mean_errors_per_paper
+            words_per_paper[idx] = mean_words_per_paper
+        # calculate errors in abstract
+        abstract_errors = []
+        abstract_words = []
+        for abstract_text in abstracts:
+            abstract_errors.append(len(tool.check(abstract_text)))
+            abstract_words.append(len(abstract_text.split()))
+        return torch.tensor(errors_per_paper, dtype=torch.float),\
+                torch.tensor(abstract_errors, dtype=torch.float),\
+                torch.tensor(words_per_paper, dtype=torch.float),\
+                torch.tensor(abstract_words, dtype=torch.float)
+
+    def read_errors(self):
+        try:
+            paper_errors = torch.load(self.DATA_ROOT / ('paper_errors.pt'))
+            abstract_errors = torch.load(self.DATA_ROOT / ('abstract_errors.pt'))
+            paper_words = torch.load(self.DATA_ROOT / ('paper_words.pt'))
+            abstract_words = torch.load(self.DATA_ROOT / ('abstract_words.pt'))
+        except FileNotFoundError:
+            if self.abstracts:
+                abstracts = self.abstracts
+            else:
+                abstracts = self.read_abstracts_text()
+            paper_text = self.read_paper_text()
+            paper_errors, abstract_errors, paper_words, abstract_words = self.detect_errors(paper_text, abstracts)
+            torch.save(paper_errors, self.DATA_ROOT / ('paper_errors.pt'))
+            torch.save(abstract_errors, self.DATA_ROOT / ('abstract_errors.pt'))
+            torch.save(paper_words, self.DATA_ROOT / ('paper_words.pt'))
+            torch.save(abstract_words, self.DATA_ROOT / ('abstract_words.pt'))
+
+        return paper_errors, abstract_errors, paper_words, abstract_words
+        '''
+        ## TO read handcrafted_features and errors:
+        from DataLoader import DataLoader
+        d = DataLoader('cpu')
+        d.read_labels().shape
+        feat = d.read_handcrafted_features()
+        perr, aerr, pwor, awor = d.read_errors()
+        '''
+
+
 
 class PerReviewDataLoader(DataLoader):
     BATCH_SIZE = 200
