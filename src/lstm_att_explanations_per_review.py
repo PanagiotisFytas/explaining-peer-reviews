@@ -228,8 +228,8 @@ if __name__ == '__main__':
     # concatenate lexicon bag of words with confounders embeddins
     train_bow = train_bow.to_numpy()
     test_bow = test_bow.to_numpy()
-    train_confounders = train_confounders.to('cpu').numpy()
-    test_confounders = test_confounders.to('cpu').numpy()
+    train_confounders = train_confounders
+    test_confounders = test_confounders
     # if causal_layer == 'adversarial':
     #     train_confounders = np.expand_dims(train_confounders, axis=1)
     #     test_confounders = np.expand_dims(test_confounders, axis=1)
