@@ -40,7 +40,8 @@ import language_check
 23      get_num_ref_to_theorems
 '''
 
-features_to_use = [1, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22, 23]
+# features_to_use = [1, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22, 23]
+features_to_use = [12, 13, 14, 15, 16, 17, 18, 19, 20, 22, 23]
 
 '''
 Those are the following fields of the json review
@@ -169,6 +170,8 @@ class DataLoader:
         self.labels = []
         self.abstracts = []
         self.abstract_embeddings = []
+        # only used for perreview dataloaders
+        self.peer_review_to_paper_ids = []
 
         # path for saving embeddings matrices
         self.path = self.DATA_ROOT / 'embeddings/' / self.conference / 'pre_trained' / self.get_dir_name()
@@ -628,7 +631,12 @@ class DataLoader:
         feat = d.read_handcrafted_features()
         perr, aerr, pwor, awor = d.read_errors()
         '''
-
+    
+    def copy_to_peer_review(self, features):
+        copied_features = []
+        for idx in self.peer_review_to_paper_ids:
+            copied_features.append(features[idx])
+        return np.stack(copied_features)
 
 
 class PerReviewDataLoader(DataLoader):
@@ -689,15 +697,20 @@ class PerReviewDataLoader(DataLoader):
                         if not self.remove_duplicates or review['comments'] not in reviews_for_specific_paper:
                             reviews_for_specific_paper.append(review['comments'])
                             self.paper_reviews.append(review['comments'])
+                            self.peer_review_to_paper_ids.append(i)
                             self.recommendation_scores.append(review['RECOMMENDATION'])
         return self.paper_reviews
     
     def _get_full_review_stats(self):
         pass
 
-    def read_scores(self):
+    def read_scores(self, task='classification'):
         self.recommendation_scores = torch.tensor(self.recommendation_scores, dtype=torch.float)
-        return self.recommendation_scores
+        if task == 'classification':
+            return (self.recommendation_scores > 5).float()
+        else:
+            return self.recommendation_scores
+        
 
     def _create_embeddings(self):
         self.model.to(self.device)
@@ -713,7 +726,48 @@ class PerReviewDataLoader(DataLoader):
         self.embeddings_from_reviews = torch.cat(self.embeddings_from_reviews)
         print('Shape: ', self.embeddings_from_reviews.shape)
         return self.embeddings_from_reviews
+    
+    def tokenise(self, reviews, maxlen=250, overlap=50):
+        splitted_reviews = []
+        for review in reviews:
+            review_widnows = self.get_windows(maxlen=maxlen, overlap=ovelap)
+            splitted_reviews.append(review_widnows)
+        batch_input_ids = self.tokenizer.batch_encode_plus(reviews, max_length=maxlen,
+                                                           pad_to_max_length=True, return_tensors='pt')
+        # # print(batch_input_ids)
+        # for key, tensor in batch_input_ids.items():
+        #     batch_input_ids[key] = tensor.to(self.device)
+        # with torch.no_grad():
+        #     reviews_embeddings = self.model(**batch_input_ids)
 
+        # # --clear from GPU memory--
+        # for tensor in batch_input_ids.values():
+        #     del tensor
+        # embeddings = reviews_embeddings[1].cpu()
+        # for emb in reviews_embeddings:
+        #     del emb
+        # torch.cuda.empty_cache()
+        # return embeddings
+        # # -------------------------
+
+    @staticmethod
+    def get_windows(text, maxlen=250, overlap=50):
+        text_windows = []
+        new_tokens_len = (maxlen - overlap)
+        if (len(text.split()) // new_tokens_len) > 0:
+            number_of_windows = len(text.split()) // new_tokens_len
+        else: 
+            number_of_windows = 1
+        for window_idx in range(number_of_windows):
+            if window_idx == 0:
+                window = text.split()[:maxlen]
+                test_windows.append(" ".join(window))
+            else:
+                start_idx = window_idx * new_tokens_len
+                end_idx = start_idx + maxlen
+                window = text.split()[start_idx:end_idx]
+                text_windows.append(" ".join(window))
+        return text_windows
 
 class PreProcessor:
     nlp = spacy.load('en_core_web_lg')
@@ -965,14 +1019,11 @@ class LSTMPerReviewDataLoader(LSTMEmbeddingLoader):
     def read_aspect_scores(self):
         return  torch.tensor(self.aspect_scores, dtype=torch.float)
     
-    def read_labels(self):
-        return (torch.tensor(self.recommendation_scores) > 5).float()
-
-    def copy_to_peer_review(self, features):
-        copied_features = []
-        for idx in self.peer_review_to_paper_ids:
-            copied_features.append(features[idx])
-        return np.stack(copied_features)
+    def read_labels(self, task='classification'):
+        if task == 'classification':
+            return (torch.tensor(self.recommendation_scores) > 5).float()
+        else:
+            return torch.tensor(self.recommendation_scores).float()
 
 if __name__ == '__main__':
     device_idx = input("GPU: ")

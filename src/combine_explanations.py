@@ -1,6 +1,6 @@
 import pickle
 import pandas as pd
-from DataLoader import DataLoader
+from DataLoader import DataLoader, PerReviewDataLoader
 import os
 from nltk.stem import WordNetLemmatizer
 import numpy as np
@@ -9,10 +9,9 @@ import re
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 
 
-
 cols = ['Words', 'Mean', '#Total', '#Positive', '#Neg', 'PosMean', 'NegMean']
-final_decision = 'only'
-# final_decision = 'exclude'
+# final_decision = 'only'
+final_decision = 'exclude'
 if final_decision == 'only':
     clf_to_explain = 'final_decision_only'
 else:
@@ -175,5 +174,6 @@ def combine_explanations(clf_to_explain=clf_to_explain, criterion='abs'):
         combined_words = combined_words.reindex(neg_df.sort_values('Mean', ascending=True).index)
     
     with pd.option_context('display.max_rows', None, 'display.max_columns', None):
-        print(combined_words)
+        print(combined_words.head(200))
     return combined_words
+

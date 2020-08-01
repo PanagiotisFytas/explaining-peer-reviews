@@ -1,7 +1,8 @@
 import re
 import numpy as np
 import torch
-from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score, classification_report
+from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score, classification_report, mean_squared_error
+from math import sqrt
 
 
 NaturalSortRegex = re.compile('([0-9]+)')
@@ -147,7 +148,7 @@ def cross_validation_metrics(network, network_params, optimizer_class, loss_fn_c
 
 
 def training_loop(data, test_data, model, device, optimizer, loss_fn, confounder_loss_fn=None, epochs=100, batch_size=64, gru_model=False,
-                  verbose=True, return_losses=False, causal_layer=None):
+                  verbose=True, return_losses=False, causal_layer=None, task='classification'):
     '''
     :param causal_layer = None | 'adversarial'
     '''
@@ -224,7 +225,7 @@ def training_loop(data, test_data, model, device, optimizer, loss_fn, confounder
                 confounder_train_loss = loss2.item()
                 # total loss
                 # loss = loss1 - .1 * loss2
-                loss = loss1 + loss2
+                loss = loss1 + 0.00001 * loss2
                 loss.backward()
                 
                 if return_losses:
@@ -310,17 +311,23 @@ def training_loop(data, test_data, model, device, optimizer, loss_fn, confounder
                 predictions, _ = model(test_embeddings, test_lengths)
             elif causal_layer == 'residual':
                 predictions, conf_predictions = model(test_embeddings, test_lengths, test_confounders)
-
-            preds = (predictions.view(-1) >= 0.5).to(device='cpu', dtype=torch.int)
-            targets = (test_labels >= 0.5).to(device='cpu', dtype=torch.int)
-            accuracy = (preds == targets).sum() * (1 / test_N)
-            print('Accuracy on test set: ', accuracy)
-            print('Confusion on test set: ', confusion_matrix(targets.numpy(), preds.numpy()))
-            print('Precision on test set: ', precision_score(targets.numpy(), preds.numpy()))
-            print('Recall on test set: ', recall_score(targets, preds))
-            print('F1 on test set: ', f1_score(targets, preds))
-            print('Report:\n', classification_report(targets, preds, digits=4))
-            print('-----------------')
+            if task == 'classification':
+                preds = (predictions.view(-1) >= 0.5).to(device='cpu', dtype=torch.int)
+                targets = (test_labels >= 0.5).to(device='cpu', dtype=torch.int)
+                accuracy = (preds == targets).sum() * (1 / test_N)
+                print('Accuracy on test set: ', accuracy)
+                print('Confusion on test set: ', confusion_matrix(targets.numpy(), preds.numpy()))
+                print('Precision on test set: ', precision_score(targets.numpy(), preds.numpy()))
+                print('Recall on test set: ', recall_score(targets, preds))
+                print('F1 on test set: ', f1_score(targets, preds))
+                print('Report:\n', classification_report(targets, preds, digits=4))
+                print('-----------------')
+            else:
+                preds = predictions.view(-1).to(device='cpu').detach().numpy()
+                targets = test_labels.to(device='cpu', dtype=torch.float).numpy()
+                print('RMSE on test set: ', sqrt(mean_squared_error(targets, preds)))
+                print('mean pred: ', preds.mean())
+                print('mean target: ', targets.mean())
 
             # if causal_layer == 'residual':
             #     preds = (conf_predictions.view(-1) >= 0.5).to(device='cpu', dtype=torch.int)

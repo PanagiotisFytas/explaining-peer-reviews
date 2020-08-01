@@ -1,37 +1,39 @@
-CUDA: '3'
+CUDA: '1'
 causal_layer: null # null | adversarial | residual
-aspect: RECOMMENDATION
+aspect: abstract # abstract | structure | grammar_errors
 cross_validation: False
 cv_explanation: False
+task: classification # classification | regression
 folds: 5
-lexicon_size: 20
+lexicon_size: 1000
+on_validation_set: True # if True will not use test set
 residual:
-    epochs: 110
-    batch_size: 150 # 30
-    lr: 0.0005 # 0.0001
+    epochs: 70
+    batch_size: 250 #500 # 30
+    lr: 0.0005 #0.0004# 0.0005
     hidden_dimensions:
-        - 128
-        - 64 
-    lstm_hidden_dimension: 30 # 30 # 300 good performance bad conf on GRU # 120 # 500
+        - 16
+#        - 64
+    lstm_hidden_dimension: 30 # 10 # 300 good performance bad conf on GRU # 120 # 500
     num_layers: 1  # Layers in the RN. Having more than 1 layer probably makes interpretability worst by combining more tokens into hiddent embs
     bidirectional: False
     cell_type: 'GRU' # 'GRU'
     causal_hidden_dimensions : 
-        - 300 # [64]
-        - 128
-    att_dim: 50
+        - 10 # 30
+        - 5
+    att_dim: 10
 not_residual:
-    epochs: 110
+    epochs: 80 # 110
     batch_size: 500 # 150 # 30
     lr: 0.0005 # 0.0005
     hidden_dimensions:
-        - 64 # 128 
+        #- 64 # 128 
         - 16 # 64  
-    lstm_hidden_dimension: 10 # 30 # 300 # 120 # 500
+    lstm_hidden_dimension: 30 # 10 # 30 # 300 # 120 # 500
     num_layers: 1  # Layers in the RN. Having more than 1 layer probably makes interpretability worst by combining more tokens into hiddent embs
     bidirectional: False
     cell_type: 'GRU' # 'GRU'
     causal_hidden_dimensions : 
-        - 300 # [64]
-        - 128
-    att_dim: 150
+        - 128 # 300 [64]
+        - 64 # 128
+    att_dim: 64 #150

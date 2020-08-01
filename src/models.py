@@ -276,8 +276,12 @@ class AbstractClassifier(nn.Module):
 
 class LSTMAttentionClassifier(nn.Module):
     def __init__(self, device, input_size=768, lstm_hidden_size=500, num_layers=1, bidirectional=False, hidden_dimensions=[500],
-                 cell_type='GRU', causal_layer=None, causal_hidden_dimensions=[30, 20], att_dim=30):
+                 cell_type='GRU', causal_layer=None, causal_hidden_dimensions=[30, 20], att_dim=30, dropout=0.2,
+                 activation='ReLU', adversarial_out=None, task='classification'):
         super(LSTMAttentionClassifier, self).__init__()
+        self.task = task
+        self.dropout = dropout
+        self.adversarial_out = adversarial_out
         self.device = device
         self.cell_type = cell_type
         if cell_type == 'GRU':
@@ -300,8 +304,8 @@ class LSTMAttentionClassifier(nn.Module):
         else:
             self.directions = 1
         if causal_layer and causal_layer == 'residual':
-            # layer_input = lstm_hidden_size + 1
-            layer_input = lstm_hidden_size + 768 # + causal_hidden_dimensions[-1]
+            layer_input = lstm_hidden_size + 1
+            # layer_input = lstm_hidden_size + 768 # + causal_hidden_dimensions[-1]
         else:
             layer_input = lstm_hidden_size * self.directions
         self.fc_layers = nn.ModuleList([])
@@ -310,27 +314,38 @@ class LSTMAttentionClassifier(nn.Module):
             layer_input = layer_out
         self.last_fc = nn.Linear(layer_input, 1)
         self.sigmoid = nn.Sigmoid()
-        self.drop = nn.Dropout(0.2)
-        self.activation = nn.ReLU()
-        
+        self.drop = nn.Dropout(self.dropout)
+        if activation == 'ReLU':
+            self.activation = nn.ReLU()
+        else:
+            self.activation = nn.Tanh()
+
         self.att1 = nn.Linear(self.directions * lstm_hidden_size, att_dim, bias=False)
         self.att2 = nn.Linear(att_dim, 1, bias=False)
 
         self.causal_layer = causal_layer
         if causal_layer == 'adversarial':
             self.rev = RevGrad()
-            self.drop2 = nn.Dropout(0.2)
+            self.drop2 = nn.Dropout(self.dropout)
             layer_input = lstm_hidden_size * self.directions
             self.causal_layers = nn.ModuleList([])
             for layer_out in causal_hidden_dimensions:
                 self.causal_layers.append(nn.Linear(layer_input, layer_out))
                 layer_input = layer_out
-            self.causal_last_fc = nn.Linear(layer_input, 10) # regression as multiclass classification
-            self.classes = torch.arange(1, 11).view(-1, 1).to(self.device, dtype=torch.float) # classes has shape 10, 1
-            self.softmax = nn.Softmax()
+            if not adversarial_out:
+                self.causal_last_fc = nn.Linear(layer_input, 10) # regression as multiclass classification
+                self.classes = torch.arange(1, 11).view(-1, 1).to(self.device, dtype=torch.float) # classes has shape 10, 1
+                self.softmax = nn.Softmax()
+            else:
+                # adversarial out is a tuple of (number_of_confounders, ids of confounders with sigmoid)
+                self.causal_last_fc = nn.Linear(layer_input, adversarial_out[0])
+
         elif causal_layer == 'residual':
-            self.drop2 = nn.Dropout(0.2)
-            layer_input = input_size
+            self.drop2 = nn.Dropout(self.dropout)
+            if not adversarial_out:
+                layer_input = input_size
+            else:
+                layer_input = adversarial_out[0]
             self.causal_layers = nn.ModuleList([])
             for layer_out in causal_hidden_dimensions:
                 self.causal_layers.append(nn.Linear(layer_input, layer_out))
@@ -355,8 +370,8 @@ class LSTMAttentionClassifier(nn.Module):
 
         if self.causal_layer == 'residual':
             # print(rnn_out.shape, confounding_out.shape)
-            # out = torch.cat([rnn_out, confounding_out], dim=1)
-            out = torch.cat([rnn_out, out_vector], dim=1)
+            out = torch.cat([rnn_out, confounding_out], dim=1)
+            # out = torch.cat([rnn_out, out_vector], dim=1)
         else:
             out = rnn_out
         
@@ -367,7 +382,8 @@ class LSTMAttentionClassifier(nn.Module):
         out = self.drop(out)
 
         out = self.last_fc(out)
-        out = self.sigmoid(out)
+        if self.task == 'classification':
+            out = self.sigmoid(out)
 
         if not self.causal_layer:
             return out
@@ -412,8 +428,12 @@ class LSTMAttentionClassifier(nn.Module):
         out = self.drop2(out)
         out = self.causal_last_fc(out)
         # out = self.sigmoid(out)
-        out = self.softmax(out)
-        out = out.matmul(self.classes) # get weights average of age for regression
+        if not self.adversarial_out:
+            out = self.softmax(out)
+            out = out.matmul(self.classes) # get weights average of age for regression
+        else:
+            for idx in self.adversarial_out[1]:
+                out[:, idx] = torch.nn.functional.sigmoid(out[:, idx])
         return out
 
     def residual_mlp_forward(self, abstract):
@@ -425,5 +445,6 @@ class LSTMAttentionClassifier(nn.Module):
         out_vector = out
         # out = self.drop2(out)
         out = self.causal_last_fc(out)
-        out = self.sigmoid(out)
+        if self.task == 'classification':
+            out = self.sigmoid(out)
         return out, abstract

@@ -7,7 +7,7 @@ from helper_functions import training_loop, cross_validation_metrics
 from models import LSTMAttentionClassifier
 import pathlib
 import os
-from combine_explanations import LSTMMetrics, cols
+from combine_explanations import LSTMMetrics
 import pandas as pd
 import scipy.stats as ss
 from sklearn.linear_model import LogisticRegression
@@ -15,6 +15,7 @@ from sklearn.metrics import mean_squared_error, classification_report
 from sklearn.model_selection import cross_val_predict
 import yaml
 
+cols = ['Words', 'Mean', '#Total', '#Positive', '#Neg', 'PosMean', 'NegMean']
 
 def generate_lstm_explanations(model, reviews, embeddings, number_of_tokens):
     '''
@@ -108,9 +109,9 @@ if __name__ == '__main__':
     causal_layer = config['causal_layer']
     lexicon_size = config['lexicon_size']
     if not causal_layer:
-        clf_to_explain = 'lstm_att_classifier'
+        clf_to_explain = 'lstm_att_classifier_per_review'
     else:
-        clf_to_explain = 'lstm_att_classifier' + causal_layer
+        clf_to_explain = 'lstm_att_classifier_per_review' + causal_layer
     # paths
     path = LSTMPerReviewDataLoader.DATA_ROOT / clf_to_explain
     model_path = str(path / 'model.pt')
@@ -133,13 +134,30 @@ if __name__ == '__main__':
     print(embeddings_input.shape)
     labels = data_loader.read_labels().to(device)
     _, _, embedding_dimension = embeddings_input.shape
-    if causal_layer == 'residual':
+    aspect = config['aspect']
+    if aspect == 'abstract':
         confounders = data_loader.read_abstract_embeddings()
-    else:
+        confounders = data_loader.copy_to_peer_review(confounders)
+        confounders = torch.tensor(confounders, dtype=torch.float)
+    elif aspect == 'structure':
+        paper_errors, abstract_errors, paper_words, abstract_words = data_loader.read_errors()
+        paper_score = paper_errors / paper_words
+        abstract_score = abstract_errors / abstract_words
+        paper_score = data_loader.copy_to_peer_review(paper_score)
+        abstract_score = data_loader.copy_to_peer_review(abstract_score)
         confounders = data_loader.read_handcrafted_features()
+        confounders = data_loader.copy_to_peer_review(confounders)
+        confounders = np.append(confounders, np.expand_dims(paper_score, axis=1), axis=1)
+        confounders = np.append(confounders, np.expand_dims(abstract_score, axis=1), axis=1)
         #confounders = data_loader.read_average_scores(aspect=config['aspect'])
+    elif aspect == 'grammar':
+        paper_errors, abstract_errors, paper_words, abstract_words = data_loader.read_errors()
+        paper_score = paper_errors / paper_words
+        abstract_score = abstract_errors / abstract_words
+        paper_score = data_loader.copy_to_peer_review(paper_score)
+        abstract_score = data_loader.copy_to_peer_review(abstract_score)
+        confounders = np.concatenate((np.expand_dims(paper_score, axis=1), np.expand_dims(abstract_score, axis=1)), axis=1)
 
-    confounders = data_loader.copy_to_peer_review(confounders)
 
     text_input = np.array(data_loader.preprocessor.preprocess(reviews))
 
@@ -151,7 +169,12 @@ if __name__ == '__main__':
     split = int(np.floor(valid_size * num_train))
 
 
-    train_idx, test_idx = indices[split:], indices[:split]
+    if config['on_validation_set']:
+        # will test on validation set and train on train set
+        train_idx, test_idx = indices[2*split:], indices[split:2*split]
+    else:
+        # will test on test set and train on train and vaildation set
+        train_idx, test_idx = indices[split:], indices[:split]
 
     # test set
 
@@ -194,7 +217,7 @@ if __name__ == '__main__':
         # print(test_bow)
         # print(test_labels_df)
     
-    if not causal_layer == 'residual':
+    if aspect != 'abstract' :
         print('###############CORRELATION###################')    
         correlations = []
         X = pd.concat([train_bow, test_bow])
@@ -214,7 +237,7 @@ if __name__ == '__main__':
         print('MSE with labels', mean_squared_error(y, preds))
         print('Classification report:\n', classification_report(y, preds))
     else:
-        clf =  LogisticRegression(max_iter=500).fit(train_bow, train_labels_df)
+        clf =  LogisticRegression(max_iter=1000).fit(train_bow, train_labels_df)
         print(clf.score(test_bow, test_labels_df))
         preds_prob = clf.predict_proba(test_bow)[:, 0]
         print('MSE with probs', mean_squared_error(test_labels_df, preds_prob))
@@ -243,7 +266,7 @@ if __name__ == '__main__':
         print('MSE with labels', mean_squared_error(y, preds))
         print('Classification report:\n', classification_report(y, preds))
     else:
-        clf =  LogisticRegression(max_iter=500).fit(train_bow, train_labels_df)
+        clf =  LogisticRegression(max_iter=2000).fit(train_bow, train_labels_df)
         print(clf.score(test_bow, test_labels_df))
         preds_prob = clf.predict_proba(test_bow)[:, 0]
         print('MSE with probs', mean_squared_error(test_labels_df, preds_prob))
@@ -270,5 +293,9 @@ if __name__ == '__main__':
         print('MSE with labels', mean_squared_error(test_labels_df, preds))
         print('Classification report:\n', classification_report(test_labels_df, preds))
         print('#############################################')
+
+    print('Saving Lexicon')
+    lexicon_path = str(path / 'lexicon.csv')
+    exp.to_csv(lexicon_path, index=False)
 
             

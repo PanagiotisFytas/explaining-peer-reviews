@@ -37,13 +37,15 @@ causal_layer = config['causal_layer']
 aspect = config['aspect']
 
 
+task = config['task']
+
 data_loader = LSTMPerReviewDataLoader(device=device,
                                       lemmatise=True, 
                                       lowercase=True, 
                                       remove_stopwords=False, 
                                       punctuation_removal=True,
                                       final_decision='exclude',
-                                      aspect=aspect,
+                                      aspect='RECOMMENDATION',
                                       pretrained_weights='scibert_scivocab_uncased',
                                      )
 
@@ -59,9 +61,39 @@ except FileNotFoundError:
 number_of_tokens = torch.tensor([review.shape[0] for review in embeddings_input])
 embeddings_input = rnn.pad_sequence(embeddings_input, batch_first=True)  # pad the reviews to form a tensor
 print(embeddings_input.shape)
-labels = data_loader.read_labels()
+labels = data_loader.read_labels(task=task)
+
 if causal_layer:
-    scores = data_loader.read_aspect_scores().to(dtype=torch.float)
+    if aspect == 'structure':
+        confounders = data_loader.read_handcrafted_features()
+        confounders = torch.tensor(data_loader.copy_to_peer_review(confounders), dtype=torch.float)
+        paper_errors, abstract_errors, paper_words, abstract_words = data_loader.read_errors()
+        paper_score = paper_errors / paper_words
+        abstract_score = abstract_errors / abstract_words
+        paper_score = torch.tensor(data_loader.copy_to_peer_review(paper_score), dtype=torch.float)
+        abstract_score = torch.tensor(data_loader.copy_to_peer_review(abstract_score), dtype=torch.float)
+        confounders = torch.cat([confounders, paper_score.view(-1, 1), abstract_score.view(-1, 1)], dim=1)
+        scores = data_loader.read_aspect_scores().to(dtype=torch.float)
+        _, number_of_confounders = confounders.shape
+        adversarial_out = (number_of_confounders, [6]) # 7 is the idx of contains appendix
+    elif aspect == 'abstract':
+        confounders = data_loader.read_abstract_embeddings()
+        confounders = torch.tensor(data_loader.copy_to_peer_review(confounders), dtype=torch.float)
+        adversarial_out = None
+    elif aspect == 'grammar_errors':
+        paper_errors, abstract_errors, paper_words, abstract_words = data_loader.read_errors()
+        paper_score = paper_errors / paper_words
+        abstract_score = abstract_errors / abstract_words
+        paper_score = torch.tensor(data_loader.copy_to_peer_review(paper_score), dtype=torch.float)
+        abstract_score = torch.tensor(data_loader.copy_to_peer_review(abstract_score), dtype=torch.float)
+        confounders = torch.cat([paper_score.view(-1, 1), abstract_score.view(-1, 1)], dim=1)
+        scores = data_loader.read_aspect_scores().to(dtype=torch.float)
+        _, number_of_confounders = confounders.shape
+        adversarial_out = (number_of_confounders) # 7 is the idx of contains appendix
+    
+    
+else:
+    adversarial_out = None
 
 _, _, embedding_dimension = embeddings_input.shape
 
@@ -92,7 +124,8 @@ if cross_validation:
         'bidirectional': bidirectional,
         'hidden_dimensions': hidden_dimensions,
         'cell_type': cell_type,
-        'causal_layer': causal_layer
+        'causal_layer': causal_layer,
+        'adversarial_out': adversarial_out
     }
     optimizer = torch.optim.Adam
     lr = lr
@@ -117,7 +150,9 @@ else:
                                     bidirectional=bidirectional,
                                     hidden_dimensions=hidden_dimensions,
                                     cell_type=cell_type,
-                                    causal_layer=causal_layer
+                                    causal_layer=causal_layer,
+                                    adversarial_out=adversarial_out,
+                                    task=task
                                    )
     shuffle = False
     valid_size = 0.1
@@ -130,26 +165,39 @@ else:
     if shuffle:
         np.random.shuffle(indices)
 
-    train_idx, test_idx = indices[split:], indices[:split]
+    if config['on_validation_set']:
+        # will test on validation set and train on train set
+        train_idx, test_idx = indices[2*split:], indices[split:2*split]
+    else:
+        # will test on test set and train on train and vaildation set
+        train_idx, test_idx = indices[split:], indices[:split]
 
     test_embeddings_input = embeddings_input[test_idx, :, :]
     test_number_of_tokens = number_of_tokens[test_idx]
     test_labels = labels[test_idx]
+    if causal_layer:
+        test_confounders = confounders[test_idx, :]
 
     embeddings_input = embeddings_input[train_idx, :, :]
     number_of_tokens = number_of_tokens[train_idx]
     labels = labels[train_idx]
+    if causal_layer:
+        confounders = confounders[train_idx, :]
+
 
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    loss_fn = nn.BCELoss()
+    if task == 'classification':
+        loss_fn = nn.BCELoss()
+    else:
+        loss_fn = nn.MSELoss()
     if not causal_layer:
         confounding_loss_fn = None
         data = [embeddings_input, number_of_tokens, labels]
         test_data = [test_embeddings_input, test_number_of_tokens, test_labels]
     else:
         confounding_loss_fn = nn.MSELoss()
-        data = [embeddings_input, number_of_tokens, labels, scores]
-        test_data = [test_embeddings_input, test_number_of_tokens, test_labels, scores]
+        data = [embeddings_input, number_of_tokens, labels, confounders]
+        test_data = [test_embeddings_input, test_number_of_tokens, test_labels, test_confounders]
 
 
     model.to(device)
@@ -164,7 +212,8 @@ else:
                            causal_layer=causal_layer,
                            epochs=epochs, 
                            batch_size=batch_size, 
-                           return_losses=True
+                           return_losses=True,
+                           task=task
                          )
 
     
@@ -177,12 +226,12 @@ else:
         model_path = LSTMPerReviewDataLoader.DATA_ROOT / 'lstm_att_classifier_per_review'
     else:
         train_losses, test_losses, confounding_train_losses, confounding_test_losses = losses
-        plt.yscale('log')
         plt.plot(train_losses, label='Train Loss')
         plt.plot(test_losses, label='Test Loss')
         plt.plot(confounding_train_losses, label='Confounding Train Loss')
         plt.plot(confounding_test_losses, label='Confounding Test Loss')
         plt.legend()
+        plt.yscale('log')
         plt.savefig('/home/pfytas/losses.png')
         model_path = LSTMPerReviewDataLoader.DATA_ROOT / ('lstm_att_classifier_per_review' + causal_layer)
     model_path.mkdir(parents=True, exist_ok=True)
