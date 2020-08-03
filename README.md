@@ -59,3 +59,14 @@ Run on bash:
 cd $DATA/PeerRead/code/accept_classify/
 ./run_featurize_classify.sh
 ```
+
+Run in order to produce grammatical errors:
+    
+```
+from DataLoader import DataLoader
+d = DataLoader('cpu')
+d.read_labels().shape
+feat = d.read_handcrafted_features()
+perr, aerr, pwor, awor = d.read_errors()
+
+```
