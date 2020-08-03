@@ -148,7 +148,7 @@ def cross_validation_metrics(network, network_params, optimizer_class, loss_fn_c
 
 
 def training_loop(data, test_data, model, device, optimizer, loss_fn, confounder_loss_fn=None, epochs=100, batch_size=64, gru_model=False,
-                  verbose=True, return_losses=False, causal_layer=None, task='classification'):
+                  verbose=True, return_losses=False, causal_layer=None, task='classification', loss2_mult=1):
     '''
     :param causal_layer = None | 'adversarial'
     '''
@@ -160,8 +160,8 @@ def training_loop(data, test_data, model, device, optimizer, loss_fn, confounder
         test_embeddings, test_lengths, test_labels, test_confounders = test_data
         test_confounders = test_confounders.to(device)
 
-    N, _seq_len, input_size = embeddings.shape
-    test_N, _, _ = test_embeddings.shape
+    N = embeddings.shape[0]
+    test_N = test_embeddings.shape[0]
     test_embeddings = test_embeddings.to(device)
     test_lengths = test_lengths.to(device)
     test_labels = test_labels.to(device)
@@ -184,7 +184,10 @@ def training_loop(data, test_data, model, device, optimizer, loss_fn, confounder
             indices = permutation[i:i + batch_size]
             batch_y = labels[indices]
             # print('Emb ', embeddings.shape)
-            batch_x = embeddings[indices, :, :]
+            if len(embeddings.shape) == 3:
+                batch_x = embeddings[indices, :, :]
+            else:
+                batch_x = embeddings[indices, :]
             # print('BX ', batch_x.shape)
             if causal_layer:
                 # print('C ', confounders.shape)
@@ -225,7 +228,7 @@ def training_loop(data, test_data, model, device, optimizer, loss_fn, confounder
                 confounder_train_loss = loss2.item()
                 # total loss
                 # loss = loss1 - .1 * loss2
-                loss = loss1 + 0.00001 * loss2
+                loss = loss1 + loss2_mult * loss2
                 loss.backward()
                 
                 if return_losses:
@@ -247,7 +250,7 @@ def training_loop(data, test_data, model, device, optimizer, loss_fn, confounder
                 loss2 = confounder_loss_fn(confounder_preds, batch_y)
                 confounder_train_loss = loss2.item()
                 # total loss
-                loss = loss1 + loss2
+                loss = loss1 + loss2_mult*loss2
 
                 loss.backward()
                 
@@ -329,17 +332,17 @@ def training_loop(data, test_data, model, device, optimizer, loss_fn, confounder
                 print('mean pred: ', preds.mean())
                 print('mean target: ', targets.mean())
 
-            # if causal_layer == 'residual':
-            #     preds = (conf_predictions.view(-1) >= 0.5).to(device='cpu', dtype=torch.int)
-            #     targets = (test_labels >= 0.5).to(device='cpu', dtype=torch.int)
-            #     accuracy = (preds == targets).sum() * (1 / test_N)
-            #     print('Accuracy on test set: ', accuracy)
-            #     print('Confusion on test set: ', confusion_matrix(targets.numpy(), preds.numpy()))
-            #     print('Precision on test set: ', precision_score(targets.numpy(), preds.numpy()))
-            #     print('Recall on test set: ', recall_score(targets, preds))
-            #     print('F1 on test set: ', f1_score(targets, preds))
-            #     print('Report:\n', classification_report(targets, preds, digits=4))
-            #     print('-----------------')
+            if causal_layer == 'residual':
+                preds = (conf_predictions.view(-1) >= 0.5).to(device='cpu', dtype=torch.int)
+                targets = (test_labels >= 0.5).to(device='cpu', dtype=torch.int)
+                accuracy = (preds == targets).sum() * (1 / test_N)
+                print('Accuracy on test set: ', accuracy)
+                print('Confusion on test set: ', confusion_matrix(targets.numpy(), preds.numpy()))
+                print('Precision on test set: ', precision_score(targets.numpy(), preds.numpy()))
+                print('Recall on test set: ', recall_score(targets, preds))
+                print('F1 on test set: ', f1_score(targets, preds))
+                print('Report:\n', classification_report(targets, preds, digits=4))
+                print('-----------------')
 
     
     if return_losses:

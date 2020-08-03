@@ -6,7 +6,7 @@ cv_explanation: False
 task: classification # classification | regression
 folds: 5
 lexicon_size: 1000
-on_validation_set: True # if True will not use test set
+on_validation_set: False # if True will not use test set
 residual:
     epochs: 70
     batch_size: 250 #500 # 30

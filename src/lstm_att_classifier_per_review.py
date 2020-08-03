@@ -89,9 +89,7 @@ if causal_layer:
         confounders = torch.cat([paper_score.view(-1, 1), abstract_score.view(-1, 1)], dim=1)
         scores = data_loader.read_aspect_scores().to(dtype=torch.float)
         _, number_of_confounders = confounders.shape
-        adversarial_out = (number_of_confounders) # 7 is the idx of contains appendix
-    
-    
+        adversarial_out = (number_of_confounders) # 7 is the idx of contains appendix  
 else:
     adversarial_out = None
 
@@ -135,7 +133,7 @@ if cross_validation:
         cross_validation_metrics(network, network_params, optimizer, loss_fn, lr,
                                  epochs, batch_size, device, data, k=5, shuffle=True)
     else:
-        data = [embeddings_input, number_of_tokens, labels, scores]
+        data = [embeddings_input, number_of_tokens, labels, confounders]
         confounding_loss_fn = nn.MSELoss
         cross_validation_metrics(network, network_params, optimizer, loss_fn, lr,
                                  epochs, batch_size, device, data, confounding_loss_fn=confounding_loss_fn, k=5, shuffle=True)
@@ -195,7 +193,7 @@ else:
         data = [embeddings_input, number_of_tokens, labels]
         test_data = [test_embeddings_input, test_number_of_tokens, test_labels]
     else:
-        confounding_loss_fn = nn.MSELoss()
+        confounding_loss_fn = nn.MSELoss() ## BCE??
         data = [embeddings_input, number_of_tokens, labels, confounders]
         test_data = [test_embeddings_input, test_number_of_tokens, test_labels, test_confounders]
 

@@ -448,3 +448,98 @@ class LSTMAttentionClassifier(nn.Module):
         if self.task == 'classification':
             out = self.sigmoid(out)
         return out, abstract
+
+class BERTClassifier(nn.Module):
+    def __init__(self, device, input_size=768, hidden_dimensions=[16],
+                 causal_layer=None, causal_hidden_dimensions=[10, 5], BERT_hidden_dimensions=[100, 30], dropout=0.2,
+                 activation='Tanh', activation2='Tanh', dropout2=0.2):
+        super(BERTClassifier, self).__init__()
+        self.hidden_size = hidden_dimensions
+        self.input_size = input_size
+        # bert mlp
+        self.bert_fc_layers = nn.ModuleList([])
+        layer_input = input_size
+        for layer_out in BERT_hidden_dimensions:
+            self.bert_fc_layers.append(nn.Linear(layer_input, layer_out))
+            layer_input = layer_out
+        
+        # last mlp
+        self.fc_layers = nn.ModuleList([])
+        if causal_layer == 'residual':
+            layer_input = BERT_hidden_dimensions[-1] + 1
+        else:
+            layer_input = BERT_hidden_dimensions[-1]
+        for layer_out in hidden_dimensions:
+            self.fc_layers.append(nn.Linear(layer_input, layer_out))
+            layer_input = layer_out
+        self.last_fc = nn.Linear(layer_input, 1)
+        self.sigmoid = nn.Sigmoid()
+        if activation == 'Tanh':
+            self.activation= nn.Tanh()
+        elif activation == 'ReLU':
+            self.activation = nn.ReLU()
+        self.drop = nn.Dropout(dropout)
+        self.causal_layer = causal_layer
+        # residual mlp
+        if causal_layer == 'residual':
+            if activation2 == 'Tanh':
+                self.activation2 = nn.Tanh()
+            elif activation2 == 'ReLU':
+                self.activation2 = nn.ReLU()
+        
+            self.drop2 = nn.Dropout(dropout2)
+            layer_input = input_size
+            self.causal_layers = nn.ModuleList([])
+            if causal_hidden_dimensions:
+                for layer_out in causal_hidden_dimensions:
+                    self.causal_layers.append(nn.Linear(layer_input, layer_out))
+                    layer_input = layer_out
+            self.causal_last_fc = nn.Linear(layer_input, 1)
+
+
+    def forward(self, inp, _lengths, abstract=None):
+
+        if self.causal_layer == 'residual':
+            confounding_out, _ = self.residual_mlp_forward(abstract)
+
+
+        out = self.bert_mlp_forward(inp)
+        if self.causal_layer == 'residual':
+            # print(rnn_out.shape, confounding_out.shape)
+            out = torch.cat([out, confounding_out], dim=1)
+            # out = torch.cat([rnn_out, out_vector], dim=1)
+
+        # out = self.relu(out)
+        for layer in self.fc_layers:
+            out = self.drop(out)
+            out = layer(out)
+            out = self.activation(out)
+
+        out = self.last_fc(out)
+        out = torch.sigmoid(out)
+        
+        if self.causal_layer == 'residual':
+            return out, confounding_out
+        else:
+            return out
+
+    def residual_mlp_forward(self, abstract):
+        out = abstract
+        for layer in self.causal_layers:
+            out = self.drop2(out)
+            out = layer(out)
+            out = self.activation2(out)
+        # out_vector = out
+        out = self.drop2(out)
+        out = self.causal_last_fc(out)
+        out = self.sigmoid(out)
+        return out, abstract
+
+    def bert_mlp_forward(self, inp):
+        out = inp
+        for layer in self.bert_fc_layers:
+            out = self.drop(out)
+            out = layer(out)
+            out = self.activation(out)
+        return out
+        

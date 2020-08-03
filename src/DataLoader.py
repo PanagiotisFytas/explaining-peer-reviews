@@ -799,7 +799,7 @@ class PreProcessor:
                           if (not self.punctuation_removal or not (token.is_punct or token.is_space))]
             review = [word for word in review if word not in self.stopwords]
             processed_reviews.append(review)
-            print(review)
+            # print(review)
         return processed_reviews
 
 
