@@ -75,6 +75,35 @@ class LSTMMetrics:
         return pd.DataFrame(data=[[self.word, self.mean, self.cnt, self.cnt_pos, self.cnt_neg, self.mean_pos, self.mean_neg]],
                             columns=cols)
 
+
+class BoWMetrics(LSTMMetrics):
+    def __init__(self, word, complex_explanations):
+        self.complex_explanations = complex_explanations
+        super(BoWMetrics, self).__init__(word)
+        self.cnt_pos = 0
+        self.cnt_neg = 0
+
+
+    
+    def add(self, importance):
+        self.sum += abs(importance)
+        self.mean = abs(importance)
+        if self.complex_explanations:
+            if importance > 0:
+                self.sum_pos = importance
+                self.mean_pos = importance
+            else:
+                self.sum_neg = importance
+                self.mean_neg = importance
+
+    def increment_count(self):
+        self.cnt += 1
+        if self.sum_pos:
+            self.cnt_pos += 1
+        elif self.neg_pos:
+            self.cnt_neg += 1
+
+
 def combine_explanation_in_matrix(binary=False):
     explanation_files = [os.path.join(path, file) for file in os.listdir(path) if file.endswith('.p') and 'explanation' in file]
     explanation_files.sort(key=natural_sort_key)
@@ -132,11 +161,12 @@ def get_explanation_labels():
     return np.array(predicted_labels), np.array(actual_labels)
     
 
-def combine_explanations(clf_to_explain=clf_to_explain, criterion='abs'):
+def combine_explanations(clf_to_explain=clf_to_explain, criterion='abs', lemmatize=False):
     """
     :param criterion: 'abs' | 'pos' | 'neg'
     """
-    lemmatizer = WordNetLemmatizer()
+    if lemmatize:
+        lemmatizer = WordNetLemmatizer()
     path = DataLoader.DATA_ROOT / clf_to_explain
     explanation_files = [os.path.join(path, file) for file in os.listdir(path) if file.endswith('.p') and 'explanation' in file]
     explanation_files.sort(key=natural_sort_key)
@@ -148,6 +178,8 @@ def combine_explanations(clf_to_explain=clf_to_explain, criterion='abs'):
         exp = pickle.load(open(f, 'rb'))
         exp_list = exp.as_list()
         for word, importance in exp_list:
+            if lemmatize:
+                word = lemmatizer.lemmatize(word.lower())
             if word.lower() in word_metrics_acc:
                 word_metrics_acc[word.lower()].add(importance)
             else:

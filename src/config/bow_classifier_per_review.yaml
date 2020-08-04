@@ -14,8 +14,7 @@ residual:
     batch_size: 100 #300 #500 # 30
     lr: 0.0001 #0.0004# 0.0005
     hidden_dimensions:
-        - 16
-#        - 64
+        [] #- 16
     bow_hidden_dimensions: 
         - 30 # 10 # 300 good performance bad conf on GRU # 120 # 500
     causal_hidden_dimensions : 
@@ -30,8 +29,8 @@ not_residual:
     batch_size: 300 #300 #500 # 30
     lr: 0.0001 #0.0004# 0.0005
     hidden_dimensions:
-        - 16
-#        - 64
+        [] # - 16
+###        - 64
     bow_hidden_dimensions: 
         - 30 # 10 # 300 good performance bad conf on GRU # 120 # 500
     causal_hidden_dimensions : 

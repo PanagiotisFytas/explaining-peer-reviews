@@ -14,20 +14,15 @@ from sklearn.metrics import mean_squared_error, classification_report
 from sklearn.model_selection import cross_val_predict
 from lstm_att_explanations_per_review import generate_bow_for_lexicon
 from DataLoader import PerReviewDataLoader
-
-# final_decision = 'only'
-final_decision = 'exclude'
-if final_decision == 'only':
-    clf_to_explain = 'final_decision_only'
-else:
-    clf_to_explain = 'no_final_decision'
+import yaml
 
 
-# paths
-path = PerReviewDataLoader.DATA_ROOT / clf_to_explain
+with open('src/config/BERT_classifier_per_review.yaml') as f:
+    config = yaml.load(f, Loader=yaml.FullLoader)
 
 
-device_idx = input("GPU: ")
+device_idx = config['CUDA']
+
 GPU = True
 if GPU:
     device = torch.device("cuda:" + device_idx if torch.cuda.is_available() else "cpu")
@@ -35,9 +30,25 @@ else:
     device = torch.device("cpu")
 print(device)
 
-exp = combine_explanations(clf_to_explain=clf_to_explain)
+causal_layer = config['causal_layer']
+lexicon_size = config['lexicon_size']
+# final_decision = 'only'
+final_decision = 'exclude'
+if final_decision == 'only':
+    clf_to_explain = 'final_decision_only'
+else:
+    clf_to_explain = 'no_final_decision'
+    if not causal_layer:
+        clf_to_explain = 'no_final_decision'
+        # clf_to_explain = 'bert_classifier_per_review'
+    else:
+        clf_to_explain = 'bert_classifier_per_review' + causal_layer
+
+# paths
+path = PerReviewDataLoader.DATA_ROOT / clf_to_explain
+
+exp = combine_explanations(clf_to_explain=clf_to_explain, lemmatize=True)
 exp['Mean'] = exp['Mean'].abs()
-lexicon_size = 200
 data_loader = PerReviewDataLoader(device=device,
                                   remove_stopwords=False,
                                   final_decision='exclude',
