@@ -100,7 +100,7 @@ class BoWMetrics(LSTMMetrics):
         self.cnt += 1
         if self.sum_pos:
             self.cnt_pos += 1
-        elif self.neg_pos:
+        elif self.sum_neg:
             self.cnt_neg += 1
 
 

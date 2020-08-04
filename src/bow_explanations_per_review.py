@@ -19,7 +19,7 @@ from bow_classifier_per_review import get_word_to_idx
 
 cols = ['Words', 'Mean', '#Total', '#Positive', '#Neg', 'PosMean', 'NegMean']
 
-def generate_bow_explanations(model, reviews, filtered_lexicon, complex_explanations=True, get_only_test_words=True, grams=(2,3,4)):
+def generate_bow_explanations(model, reviews, filtered_lexicon, causal_layer, complex_explanations=True, get_only_test_words=True, grams=(2,3,4)):
     '''
     generate global explanations
     The reviews must already be preprocessed. The lstm explanations generator will not do preprocessing
@@ -31,7 +31,10 @@ def generate_bow_explanations(model, reviews, filtered_lexicon, complex_explanat
     if complex_explanations:
         # e_weights = model.fc_layers[0].weight # TODO projection
         # importances = torch.matmul(model.last_fc.weight, torch.matmul(e_weights, bow_weights)).view(-1, 1)
-        e_weights = model.last_fc.weight # TODO projection
+        if causal_layer:
+            e_weights = model.last_fc.weight[:, :-1] # projection: remove Y'
+        else:
+            e_weights = model.last_fc.weight
         print(e_weights.shape)
         importances = torch.matmul(e_weights, bow_weights).view(-1, 1)
         
@@ -237,7 +240,7 @@ if __name__ == '__main__':
     model.device = device
 
     test_embeddings_input = test_embeddings_input.to(device)
-    exp = generate_bow_explanations(model, test_text_input, filtered_lexicon, get_only_test_words=True)
+    exp = generate_bow_explanations(model, test_text_input, filtered_lexicon, causal_layer, get_only_test_words=True)
     exp['Mean'] = exp['Mean'].abs()
     # get explanation (and lexicon) from test set
 

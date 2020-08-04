@@ -1,5 +1,5 @@
 CUDA: '0'
-causal_layer: null # null | adversarial | residual
+causal_layer: residual # null | adversarial | residual
 causal_lexicon: null
 aspect: abstract # abstract | structure | grammar_errors
 cross_validation: False
@@ -10,18 +10,18 @@ lexicon_size: 1000
 on_validation_set: False # if True will not use test set
 loss2_mult: 1
 residual:
-    epochs: 110 # 200
-    batch_size: 100 #300 #500 # 30
+    epochs: 200 #50  # 110 # 200
+    batch_size: 300 #300 #500 # 30
     lr: 0.0001 #0.0004# 0.0005
     hidden_dimensions:
         [] #- 16
     bow_hidden_dimensions: 
-        - 30 # 10 # 300 good performance bad conf on GRU # 120 # 500
+        - 5 # 30 # 10 # 300 good performance bad conf on GRU # 120 # 500
     causal_hidden_dimensions : 
-        - 150 #30 # 120 # 10  # 64
-        - 50 #16  # 30 # 5
+        - 10 #150 #30 # 120 # 10  # 64
+        - 5 #50 #16  # 30 # 5
     dropout: 0.05 #0.1
-    dropout2: 0.5 # 0.1
+    dropout2: 0 # 0.1
     activation: ReLU
     activation2: ReLU
 not_residual:

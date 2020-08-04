@@ -545,7 +545,7 @@ class BERTClassifier(nn.Module):
         
 
 class BoWClassifier(nn.Module):
-    def __init__(self, device, input_size=6290, hidden_dimensions=[16],
+    def __init__(self, device, input_size=6290, embedding_size=768, hidden_dimensions=[16],
                  causal_layer=None, causal_hidden_dimensions=[10, 5], bow_hidden_dimensions=[30], dropout=0.2,
                  activation='Tanh', activation2='Tanh', dropout2=0.2):
         super(BoWClassifier, self).__init__()
@@ -583,7 +583,7 @@ class BoWClassifier(nn.Module):
                 self.activation2 = nn.ReLU()
         
             self.drop2 = nn.Dropout(dropout2)
-            layer_input = input_size
+            layer_input = embedding_size
             self.causal_layers = nn.ModuleList([])
             if causal_hidden_dimensions:
                 for layer_out in causal_hidden_dimensions:
