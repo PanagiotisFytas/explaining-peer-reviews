@@ -240,7 +240,7 @@ if __name__ == '__main__':
     model.device = device
 
     test_embeddings_input = test_embeddings_input.to(device)
-    exp = generate_bow_explanations(model, test_text_input, filtered_lexicon, causal_layer, get_only_test_words=True)
+    exp = generate_bow_explanations(model, test_text_input, filtered_lexicon, causal_layer, complex_explanations=False, get_only_test_words=False)
     exp['Mean'] = exp['Mean'].abs()
     # get explanation (and lexicon) from test set
 

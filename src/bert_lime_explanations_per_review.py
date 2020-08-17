@@ -39,14 +39,15 @@ if final_decision == 'only':
 else:
     clf_to_explain = 'no_final_decision'
     if not causal_layer:
-        clf_to_explain = 'no_final_decision'
-        # clf_to_explain = 'bert_classifier_per_review'
+        # clf_to_explain = 'no_final_decision'
+        clf_to_explain = 'bert_classifier_per_review'
     else:
         clf_to_explain = 'bert_classifier_per_review' + causal_layer
 
 # paths
-path = PerReviewDataLoader.DATA_ROOT / clf_to_explain
+path = PerReviewDataLoader.DATA_ROOT / clf_to_explain 
 
+# exp = combine_explanations(clf_to_explain=clf_to_explain +  '/second_exp', lemmatize=True)
 exp = combine_explanations(clf_to_explain=clf_to_explain, lemmatize=True)
 exp['Mean'] = exp['Mean'].abs()
 data_loader = PerReviewDataLoader(device=device,

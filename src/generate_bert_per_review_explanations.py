@@ -15,10 +15,10 @@ if causal_layer:
 else:
     clf_to_explain = 'bert_classifier_per_review'
 
-num_features = 200 # 20
+num_features = 50 #200 # 20
 # increasing number of features -> more words per sample -> reduct the mean significance of important words that only appear once
 num_samples = 15000 # 10000
-BATCH_SIZE = 100 # 200
+BATCH_SIZE = 200 # 200
 
 # paths
 path = PerReviewDataLoader.DATA_ROOT / clf_to_explain
@@ -139,6 +139,8 @@ print('Accuracy on test set: ', accuracy)
 if causal_layer:
     conf_accuracy = (conf_preds == targets).sum() * (1 / len(test_idx))
     print('Conf Accuracy on test set: ', conf_accuracy)
+
+path = PerReviewDataLoader.DATA_ROOT / clf_to_explain / 'second_exp'
 
 
 # Generate Explanations
