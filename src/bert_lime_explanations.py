@@ -12,9 +12,35 @@ import scipy.stats as ss
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import mean_squared_error, classification_report
 from sklearn.model_selection import cross_val_predict
-from lstm_att_explanations_per_review import generate_bow_for_lexicon
-from DataLoader import PerReviewDataLoader
+from DataLoader import DataLoader
 import yaml
+
+
+def generate_bow_for_lexicon(explanation, reviews, k=100):
+    '''
+    :param explanation: a dataframe with the global explanations
+    :param reviews: preprocessed reviews
+    :param k: use the top k words from the lexicon
+    :returns a dataframe with the words of a lexicon as columns and a binary vector for each review as row
+    '''
+    lexicon = explanation['Words'].to_list()[:k]
+    bow = pd.DataFrame(columns=lexicon)
+    idx = 0
+    for paper_reviews in reviews:
+        bow_vector = []
+        for word in lexicon:
+            word_found = 0
+            for review in paper_reviews:
+                if word in review:
+                    word_found = 1
+                    break
+                else:
+                    word_found = 0
+            bow_vector.append(word_found)
+        bow.loc[idx] = bow_vector
+        idx += 1
+    return bow
+
 
 
 with open('src/config/BERT_classifier_per_review.yaml') as f:
@@ -30,7 +56,7 @@ else:
     device = torch.device("cpu")
 print(device)
 
-causal_layer = config['causal_layer']
+causal_layer = None
 lexicon_size = config['lexicon_size']
 # final_decision = 'only'
 final_decision = 'exclude'
@@ -38,19 +64,14 @@ if final_decision == 'only':
     clf_to_explain = 'final_decision_only'
 else:
     clf_to_explain = 'no_final_decision'
-    if not causal_layer:
-        # clf_to_explain = 'no_final_decision'
-        clf_to_explain = 'bert_classifier_per_review'
-    else:
-        clf_to_explain = 'bert_classifier_per_review' + causal_layer
 
 # paths
-path = PerReviewDataLoader.DATA_ROOT / clf_to_explain 
+path = DataLoader.DATA_ROOT / clf_to_explain 
 
-exp = combine_explanations(clf_to_explain=clf_to_explain +  '/second_exp', lemmatize=True)
-# exp = combine_explanations(clf_to_explain=clf_to_explain, lemmatize=True)
+# exp = combine_explanations(clf_to_explain=clf_to_explain +  '/second_exp', lemmatize=True)
+exp = combine_explanations(clf_to_explain=clf_to_explain, lemmatize=True)
 exp['Mean'] = exp['Mean'].abs()
-data_loader = PerReviewDataLoader(device=device,
+data_loader = DataLoader(device=device,
                                   remove_stopwords=False,
                                   final_decision='exclude',
                                   pretrained_weights='scibert_scivocab_uncased',
@@ -58,15 +79,14 @@ data_loader = PerReviewDataLoader(device=device,
                                   )
 
 embeddings_input = data_loader.read_embeddigns_from_file()
+embeddings_input = rnn.pad_sequence(embeddings_input, batch_first=True).to(device)  # pad the reviews to form a tensor
 reviews = data_loader.read_reviews_only_text()
 
 number_of_tokens = torch.tensor([review.shape[0] for review in embeddings_input]).to(device)
-labels = data_loader.read_scores().to(device)
+labels = data_loader.read_labels().to(device)
 aspect = 'abstract'
 if aspect == 'abstract':
     confounders = data_loader.read_abstract_embeddings()
-    confounders = data_loader.copy_to_peer_review(confounders)
-    confounders = torch.tensor(confounders, dtype=torch.float)
 elif aspect == 'structure':
     paper_errors, abstract_errors, paper_words, abstract_words = data_loader.read_errors()
     paper_score = paper_errors / paper_words
@@ -102,7 +122,7 @@ train_idx, test_idx = indices[split:], indices[:split]
 # test set
 
 test_text_input = text_input[test_idx]
-test_embeddings_input = embeddings_input[test_idx, :]
+test_embeddings_input = embeddings_input[test_idx, :, :]
 test_number_of_tokens = number_of_tokens[test_idx]
 print(labels)
 print(labels.shape)
@@ -113,7 +133,7 @@ test_confounders = confounders[test_idx]
 
 train_text_input = text_input[train_idx]
 print(indices)
-train_embeddings_input = embeddings_input[train_idx, :]
+train_embeddings_input = embeddings_input[train_idx, :, :]
 train_number_of_tokens = number_of_tokens[train_idx]
 train_labels = labels[train_idx]
 train_confounders = confounders[train_idx]

@@ -8,8 +8,8 @@ from DataLoader import PerReviewDataLoader
 import pickle
 
 
-# causal_layer = 'residual'
-causal_layer = None
+causal_layer = 'residual'
+# causal_layer = None
 if causal_layer:
     clf_to_explain = ('bert_classifier_per_review' + causal_layer)
 else:

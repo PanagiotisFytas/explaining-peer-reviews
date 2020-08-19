@@ -5,7 +5,7 @@ cross_validation: False
 cv_explanation: False
 task: classification # classification | regression
 folds: 5
-lexicon_size: 50
+lexicon_size: 1000 # 50
 on_validation_set: False # if True will not use test set
 residual:
     epochs: 70

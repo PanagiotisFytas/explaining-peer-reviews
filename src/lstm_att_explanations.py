@@ -182,20 +182,26 @@ if __name__ == '__main__':
 
     train_labels_df = pd.DataFrame(train_labels.to('cpu').numpy())
 
+    if lexicon_size >= 1000:
+        train_bow_path = str(path / 'train_bow.csv')
+        train_bow.to_csv(train_bow_path, index=False)
+        test_bow_path = str(path / 'test_bow.csv')
+        test_bow.to_csv(test_bow_path, index=False)
+
 
     # with pd.option_context('display.max_rows', None, 'display.max_columns', 8):
         # print(test_bow)
         # print(test_labels_df)
     
-    if not causal_layer == 'residual':
-        print('###############CORRELATION###################')    
-        correlations = []
-        X = pd.concat([train_bow, test_bow])
-        y = confounders
-        for word_idx in range(lexicon_size):
-            correlations.append(ss.pointbiserialr(X.iloc[:, word_idx], y))
-        print("Average PointBiserial Correlation: ", np.mean(correlations))
-        print('#############################################')
+    # if not causal_layer == 'residual':
+    #     print('###############CORRELATION###################')    
+    #     correlations = []
+    #     X = pd.concat([train_bow, test_bow])
+    #     y = confounders
+    #     for word_idx in range(lexicon_size):
+    #         correlations.append(ss.pointbiserialr(X.iloc[:, word_idx], y))
+    #     print("Average PointBiserial Correlation: ", np.mean(correlations))
+    #     print('#############################################')
 
     print('###### LR on lexicon (no confounding): ######')
     if config['cv_explanation']:

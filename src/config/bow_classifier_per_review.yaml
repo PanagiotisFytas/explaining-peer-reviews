@@ -1,5 +1,5 @@
 CUDA: '0'
-causal_layer: residual # null | adversarial | residual
+causal_layer: null # null | adversarial | residual
 causal_lexicon: null
 aspect: abstract # abstract | structure | grammar_errors
 cross_validation: False

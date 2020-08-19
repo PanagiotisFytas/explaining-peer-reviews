@@ -78,6 +78,7 @@ activation2 = nn_conf['activation2']
 if cross_validation:
     network = BERTClassifier
     network_params = {
+        'device': device,
         'input_size': embedding_dimension,
         'hidden_dimensions': hidden_dimensions,
         'causal_hidden_dimensions': causal_hidden_dimensions,
@@ -94,16 +95,18 @@ if cross_validation:
     if not causal_layer:
         data = [embeddings_input, labels, labels]
         cross_validation_metrics(network, network_params, optimizer, loss_fn, lr,
-                                 epochs, batch_size, device, data, k=5, shuffle=True)
+                                 epochs, batch_size, device, data, k=folds, shuffle=True)
     else:
         data = [embeddings_input, labels, labels, confounders]
-        confounding_loss_fn = nn.MSELoss
+        confounding_loss_fn = nn.BCELoss
         cross_validation_metrics(network, network_params, optimizer, loss_fn, lr,
-                                 epochs, batch_size, device, data, confounding_loss_fn=confounding_loss_fn, k=5, shuffle=True)
+                                 epochs, batch_size, device, data, causal_layer=causal_layer,
+                                 confounding_loss_fn=confounding_loss_fn, k=folds, 
+                                 shuffle=True, loss2_mult=config['loss2_mult'])
 
 
-    cross_validation_metrics(network, network_params, optimizer, loss_fn, lr,
-                             epochs, batch_size, device, data, k=5, shuffle=True)
+    # cross_validation_metrics(network, network_params, optimizer, loss_fn, lr,
+    #                          epochs, batch_size, device, data, k=5, shuffle=True)
     # # dataset = CustomDataset(embeddings_input, number_of_reviews, labels)
     # dataset = Dataset({'inp': embeddings_input, 'lengths': number_of_reviews}, labels)
     # # X_dict = {'inp': embeddings_input, 'lengths': number_of_reviews}
@@ -188,7 +191,7 @@ else:
         plt.plot(train_losses, label='Train Loss')
         plt.plot(test_losses, label='Test Loss')
         plt.legend()
-        plt.savefig('/home/pfytas/losses.png')
+        plt.savefig('/home/pfytas/peer-review-classification/bert_losses.png')
         model_path = PerReviewDataLoader.DATA_ROOT / 'bert_classifier_per_review'
     else:
         train_losses, test_losses, confounding_train_losses, confounding_test_losses = losses
@@ -198,7 +201,7 @@ else:
         plt.plot(confounding_test_losses, label='Confounding Test Loss')
         plt.legend()
         # plt.yscale('log')
-        plt.savefig('/home/pfytas/losses.png')
+        plt.savefig('/home/pfytas/peer-review-classification/bert_losses.png')
         model_path = PerReviewDataLoader.DATA_ROOT / ('bert_classifier_per_review' + causal_layer)
     model_path.mkdir(parents=True, exist_ok=True)
-    torch.save(model, model_path / 'model.pt')
+    # torch.save(model, model_path / 'model.pt')

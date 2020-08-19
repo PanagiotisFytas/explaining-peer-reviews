@@ -34,8 +34,13 @@ class Metrics:
             self.report = {}
         else:
             model.eval()
-            embeddings, lengths, labels = data
-            predictions = model(embeddings, lengths)
+            if len(data) == 3:
+                embeddings, lengths, labels = data
+                predictions = model(embeddings, lengths)
+            else:
+                embeddings, lengths, labels, conf = data
+                predictions, _ = model(embeddings, lengths, abstract=conf)
+            # predictions = model(embeddings, lengths)
             preds = (predictions.view(-1) >= 0.5).to(device='cpu', dtype=torch.int)
             targets = (labels >= 0.5).to(device='cpu', dtype=torch.int)
             self.confusion_matrix = confusion_matrix(targets.numpy(), preds.numpy())
@@ -100,8 +105,13 @@ class Metrics:
 
 
 def cross_validation_metrics(network, network_params, optimizer_class, loss_fn_class, lr, epochs, batch_size, device,
-                             data, k=5, gru_model=False, shuffle=True):
-    input, lengths, labels = data
+                             data, causal_layer=None, k=5, gru_model=False, shuffle=True, loss2_mult=1,
+                             confounding_loss_fn=None):
+    
+    if causal_layer:
+        input, lengths, labels, conf = data
+    else:
+        input, lengths, labels = data
     training_parameters = {'epochs': epochs, 'batch_size': batch_size}
 
     num_samples = input.shape[0]
@@ -120,22 +130,36 @@ def cross_validation_metrics(network, network_params, optimizer_class, loss_fn_c
         model.to(device)
         optimizer = optimizer_class(model.parameters(), lr=lr)
         loss_fn = loss_fn_class()
+        if causal_layer:
+            conf_loss_fn = confounding_loss_fn()
 
         valid_idx = indices[start:end]
         train_idx = np.append(indices[:start], indices[end:])
 
-        valid_input = input[valid_idx, :, :]
+        # valid_input = input[valid_idx, :, :]
+        valid_input = input[valid_idx]
         valid_length = lengths[valid_idx]
         valid_labels = labels[valid_idx]
+        if causal_layer:
+            valid_conf = conf[valid_idx]
 
-        train_input = input[train_idx, :, :]
+        # train_input = input[train_idx, :, :]
+        train_input = input[train_idx]
         train_length = lengths[train_idx]
         train_labels = labels[train_idx]
+        if causal_layer:
+            train_conf = conf[train_idx]
 
-        train_data = [train_input, train_length, train_labels]
-        valid_data = [valid_input, valid_length, valid_labels]
+
+        train_data = [train_input.to(device), train_length.to(device), train_labels.to(device)]
+        valid_data = [valid_input.to(device), valid_length.to(device), valid_labels.to(device)]
+        if causal_layer:
+            train_data.append(train_conf.to(device))
+            valid_data.append(valid_conf.to(device))
+
         training_loop(train_data, valid_data, model, device, optimizer, loss_fn, **training_parameters,
-                      gru_model=gru_model, verbose=False)
+                      gru_model=gru_model, verbose=False, loss2_mult=loss2_mult, confounder_loss_fn=conf_loss_fn,
+                      causal_layer=causal_layer)
         metrics = Metrics(valid_data, model)
         print(metrics)
         cv_metrics.append(metrics)

@@ -252,6 +252,13 @@ if __name__ == '__main__':
 
     train_labels_df = pd.DataFrame(train_labels.to('cpu').numpy())
 
+    if lexicon_size >= 1000:
+        train_bow_path = str(path / 'train_bow.csv')
+        train_bow.to_csv(train_bow_path, index=False)
+        test_bow_path = str(path / 'test_bow.csv')
+        test_bow.to_csv(test_bow_path, index=False)
+
+
 
     # with pd.option_context('display.max_rows', None, 'display.max_columns', 8):
         # print(test_bow)
