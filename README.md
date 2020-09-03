@@ -44,6 +44,12 @@ and can be installed by:
 pip install -r requirements.txt
 ```
 
+Also install spaCy dependencies:
+
+```bash
+python3 -m spacy download 'en_core_web_lg'
+```
+
 ## Executing the Files
 
 The files can be executed by running, for instance, 
