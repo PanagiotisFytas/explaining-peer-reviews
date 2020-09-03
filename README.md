@@ -50,15 +50,17 @@ python src/basic_GRU_Classifier.py
 Those scrips need to be executed from the ROOT directory of 
 the project.
 
-## Overview of Main Files
+## Overview of Main Utility Files
 
-- `DataLoader.py` :
+- `DataLoader.py` : offers the functionality needed to read the data from PeerRead,
+perform Preprocessing and generate BERT embeddings.
 - `helper_functions.py` :
 - `models.py` :
 - `abstract_classifier.py` :
 - `length_hist.py` :
 - `logistic_regression_curves_per_review.py` :
-- 
+- `majority_baseline.py` :
+- `majority_baseline_per_review.py` :
 
 <!-- # Get Features from PeerRead
 
