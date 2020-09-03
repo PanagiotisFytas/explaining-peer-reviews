@@ -39,7 +39,7 @@ and can be installed by:
 pip install -r requirements.txt
 ```
 
-## Executing the files
+## Executing the Files
 
 The files can be executed by running, for instance, 
 the following:
@@ -50,7 +50,15 @@ python src/basic_GRU_Classifier.py
 Those scrips need to be executed from the ROOT directory of 
 the project.
 
-## Overview of main files
+## Overview of Main Files
+
+- *DataLoader.py*:
+- *helper_functions.py*:
+- *models.py*:
+- *abstract_classifier.py*:
+- *length_hist.py*:
+- *logistic_regression_curves_per_review.py*:
+-
 
 <!-- # Get Features from PeerRead
 
