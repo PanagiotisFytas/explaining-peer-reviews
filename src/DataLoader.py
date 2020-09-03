@@ -68,7 +68,7 @@ Each review has the following fields (the numbers are counters):
 
     Observations:
         comments is the text of the review
-        every reviews that is not a meta review has a title and date
+        every review that is not a meta review has a title and date
 
 '''
 try:
@@ -86,6 +86,8 @@ stopwords_kept = ['am', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have
                   "weren't", 'won', "won't", 'wouldn', "wouldn't"]
 
 
+# The gereal DataLoader Class. Should be used for classifying reviews
+# on a per submission basis
 class DataLoader:
     # ROOT = pathlib.Path(__file__).parent.parent
     DATA_ROOT = pathlib.Path(os.environ['DATA'])
@@ -358,8 +360,6 @@ class DataLoader:
         return self._create_embeddings()
 
     def write_embeddings_to_file(self):
-        # path = self.ROOT / 'data/embeddings/' / self.conference / 'pre_trained' / (self.model_class.__name__ + '_' +
-        #                                                                            self.pretrained_weights)
         print(self.path)
         self.path.mkdir(parents=True, exist_ok=True)
         for idx, reviews in enumerate(self.embeddings_from_reviews):
@@ -639,6 +639,7 @@ class DataLoader:
         return np.stack(copied_features)
 
 
+# Should be used on BERT classifier that classify each review individually
 class PerReviewDataLoader(DataLoader):
     BATCH_SIZE = 200
     def __init__(self, *args, **kwargs):
@@ -734,23 +735,9 @@ class PerReviewDataLoader(DataLoader):
             splitted_reviews.append(review_widnows)
         batch_input_ids = self.tokenizer.batch_encode_plus(reviews, max_length=maxlen,
                                                            pad_to_max_length=True, return_tensors='pt')
-        # # print(batch_input_ids)
-        # for key, tensor in batch_input_ids.items():
-        #     batch_input_ids[key] = tensor.to(self.device)
-        # with torch.no_grad():
-        #     reviews_embeddings = self.model(**batch_input_ids)
-
-        # # --clear from GPU memory--
-        # for tensor in batch_input_ids.values():
-        #     del tensor
-        # embeddings = reviews_embeddings[1].cpu()
-        # for emb in reviews_embeddings:
-        #     del emb
-        # torch.cuda.empty_cache()
-        # return embeddings
-        # # -------------------------
 
     @staticmethod
+    # allows sliding window functionality
     def get_windows(text, maxlen=250, overlap=50):
         text_windows = []
         new_tokens_len = (maxlen - overlap)
@@ -769,6 +756,7 @@ class PerReviewDataLoader(DataLoader):
                 text_windows.append(" ".join(window))
         return text_windows
 
+# Standard PreProcessing Class, to be used from the DataLoaders
 class PreProcessor:
     nlp = spacy.load('en_core_web_lg')
     def __init__(self, final_decision='only', lemmatise=True, lowercase=True, remove_stopwords=True, punctuation_removal=True):
@@ -803,6 +791,7 @@ class PreProcessor:
         return processed_reviews
 
 
+# Should be used for an RNN classifier that classifies each reviews individually
 class LSTMEmbeddingLoader(DataLoader):
     # ROOT = pathlib.Path(__file__).parent.parent
     DATA_ROOT = pathlib.Path(os.environ['DATA'])
