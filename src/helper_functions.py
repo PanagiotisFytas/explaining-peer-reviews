@@ -107,7 +107,18 @@ class Metrics:
 def cross_validation_metrics(network, network_params, optimizer_class, loss_fn_class, lr, epochs, batch_size, device,
                              data, causal_layer=None, k=5, gru_model=False, shuffle=True, loss2_mult=1,
                              confounding_loss_fn=None):
-    
+    """
+    :param netwrok: the PyTorch model class
+    :param network_params: the arguments of the constructor of the model
+    :param optimzer_class: the PyTorch class to used for optimisation
+    :param loss_fn_class: the class of the loss function
+    :param lr: the learning rate
+    :param epochs: the training epochs
+    :param batch_size: the batch size of SGD
+    :param device: 'cpu' | 'CUDA:0' | ...
+    :param data: the data of the model
+    :returns the cross validation metrics
+    """
     if causal_layer:
         input, lengths, labels, conf = data
     else:
@@ -246,10 +257,6 @@ def training_loop(data, test_data, model, device, optimizer, loss_fn, confounder
                 loss1 = loss_fn(preds, batch_y)
                 train_loss = loss1.item()
                 # confounder loss
-                # print(confounder_preds.shape, batch_confounders.shape, confounder_loss_fn)
-                # print(confounder_preds)
-                # print('!!!!!!!!!!')
-                # print(batch_confounders)
                 loss2 = confounder_loss_fn(confounder_preds, batch_confounders)
                 confounder_train_loss = loss2.item()
                 # total loss
@@ -269,10 +276,6 @@ def training_loop(data, test_data, model, device, optimizer, loss_fn, confounder
                 loss1 = loss_fn(preds, batch_y)
                 train_loss = loss1.item()
                 # confounder loss
-                # print(confounder_preds.shape, batch_confounders.shape, confounder_loss_fn)
-                # print(confounder_preds)
-                # print('!!!!!!!!!!')
-                # print(batch_confounders)
                 loss2 = confounder_loss_fn(confounder_preds, batch_y)
                 confounder_train_loss = loss2.item()
                 # total loss
@@ -323,16 +326,7 @@ def training_loop(data, test_data, model, device, optimizer, loss_fn, confounder
 
         if verbose:
             model.eval()
-            # if not causal_layer:
-            #     predictions = model(embeddings, lengths)
-            # else:
-            #     predictions, _ = model(embeddings, lengths)
-            # preds = predictions.view(-1) >= 0.5
-            # targets = labels >= 0.5
-
-            # accuracy = (preds == targets).sum() * (1 / N)
             print('-----EPOCH ' + str(epoch) + '-----')
-            # print('Accuracy on train set: ', accuracy)
 
             if not causal_layer:
                 predictions = model(test_embeddings, test_lengths)
@@ -382,6 +376,19 @@ def training_loop(data, test_data, model, device, optimizer, loss_fn, confounder
 
 def cross_validation_metrics_scores(network, network_params, optimizer_class, loss_fn_class, lr, epochs, batch_size, device,
                                     data, k=5, gru_model=False, shuffle=True):
+    """
+    :param netwrok: the PyTorch model class
+    :param network_params: the arguments of the constructor of the model
+    :param optimzer_class: the PyTorch class to used for optimisation
+    :param loss_fn_class: the class of the loss function
+    :param lr: the learning rate
+    :param epochs: the training epochs
+    :param batch_size: the batch size of SGD
+    :param device: 'cpu' | 'CUDA:0' | ...
+    :param data: the data of the model
+    :returns the cross validation metrics
+    """
+
     input, lengths, labels = data
     training_parameters = {'epochs': epochs, 'batch_size': batch_size}
 
@@ -508,37 +515,3 @@ def training_loop_scores(data, test_data, model, device, optimizer, loss_fn, epo
     if return_losses:
         return train_losses, test_losses
     
-
-
-
-
-#
-# class CustomDataset(torch.utils.data.Dataset):
-#     def __init__(self, input, lengths, Y):
-#         self.input = input
-#         self.lengths = lengths
-#         self.Y = Y
-#         self.len = len(input)
-#         self.cnt = 1
-#
-#     def __getitem__(self, idx):
-#         print(self.cnt)
-#         self.cnt += 1
-#         # print({'inp': self.input[idx], 'lengths': self.lengths[idx].item()}, self.Y[idx])
-#         if isinstance(idx, Iterable):
-#             return {'inp': self.input[idx], 'lengths': self.lengths[idx]}, self.Y[idx]
-#         else:
-#             return {'inp': self.input[idx], 'lengths': self.lengths[idx].item()}, self.Y[idx]
-#         # if self.cnt >= self.len:
-#         #     return None
-#         # X, y = {'inp': self.input[idx, :, :], 'lengths': self.lengths[idx]}, self.Y[idx]
-#         # y = y.item() if y is None else y
-#         # Xinp = X['inp'].item() if X['inp'] is None else X['inp']
-#         # Xlengths = X['lengths'].item() if X['lengths'] is None else X['lengths']
-#         # X, y = {'inp': Xinp, 'lengths': Xlengths}, y
-#         # return X, y
-#
-#     def __len__(self):
-#         print(self.len)
-#         return self.len
-
