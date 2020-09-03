@@ -10,11 +10,11 @@ on_validation_set: False # if True will not use test set
 residual:
     epochs: 80
     batch_size: 500 #500 # 30
-    lr: 0.0005 #0.0004# 0.0005
+    lr: 0.0005 #0.0005# 0.0004
     hidden_dimensions:
+        #- 64
         - 16
-#        - 64
-    lstm_hidden_dimension: 30 # 10 # 300 good performance bad conf on GRU # 120 # 500
+    lstm_hidden_dimension: 30 # 30 # 300 good performance bad conf on GRU # 120 # 500
     num_layers: 1  # Layers in the RN. Having more than 1 layer probably makes interpretability worst by combining more tokens into hiddent embs
     bidirectional: False
     cell_type: 'GRU' # 'GRU'

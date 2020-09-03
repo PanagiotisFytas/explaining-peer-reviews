@@ -276,11 +276,12 @@ class AbstractClassifier(nn.Module):
 
 class LSTMAttentionClassifier(nn.Module):
     def __init__(self, device, input_size=768, lstm_hidden_size=500, num_layers=1, bidirectional=False, hidden_dimensions=[500],
-                 cell_type='GRU', causal_layer=None, causal_hidden_dimensions=[30, 20], att_dim=30, dropout=0.2,
-                 activation='ReLU', adversarial_out=None, task='classification'):
+                 cell_type='GRU', causal_layer=None, causal_hidden_dimensions=[30, 20], att_dim=30, dropout1=0.2,
+                 dropout2=0.2, activation='ReLU', adversarial_out=None, task='classification'):
         super(LSTMAttentionClassifier, self).__init__()
         self.task = task
-        self.dropout = dropout
+        self.dropout1 = dropout1
+        self.dropout2 = dropout2
         self.adversarial_out = adversarial_out
         self.device = device
         self.cell_type = cell_type
@@ -314,7 +315,7 @@ class LSTMAttentionClassifier(nn.Module):
             layer_input = layer_out
         self.last_fc = nn.Linear(layer_input, 1)
         self.sigmoid = nn.Sigmoid()
-        self.drop = nn.Dropout(self.dropout)
+        self.drop = nn.Dropout(self.dropout1)
         if activation == 'ReLU':
             self.activation = nn.ReLU()
         else:
@@ -326,7 +327,7 @@ class LSTMAttentionClassifier(nn.Module):
         self.causal_layer = causal_layer
         if causal_layer == 'adversarial':
             self.rev = RevGrad()
-            self.drop2 = nn.Dropout(self.dropout)
+            self.drop2 = nn.Dropout(self.dropout2)
             layer_input = lstm_hidden_size * self.directions
             self.causal_layers = nn.ModuleList([])
             for layer_out in causal_hidden_dimensions:
@@ -341,7 +342,7 @@ class LSTMAttentionClassifier(nn.Module):
                 self.causal_last_fc = nn.Linear(layer_input, adversarial_out[0])
 
         elif causal_layer == 'residual':
-            self.drop2 = nn.Dropout(self.dropout)
+            self.drop2 = nn.Dropout(self.dropout2)
             if not adversarial_out:
                 layer_input = input_size
             else:

@@ -1,5 +1,5 @@
 CUDA: '2'
-causal_layer: null # adversarial # null | adversarial | residual
+causal_layer: residual # adversarial # null | adversarial | residual
 aspect: abstract # RECOMMENDATION
 cross_validation: False
 cv_explanation: False
@@ -7,9 +7,9 @@ folds: 10
 lexicon_size: 60 # 20
 on_validation_set: False # if True will not use test set
 residual:
-    epochs: 70 # 90 # 50
+    epochs: 80 # 90 # 50
     batch_size: 30
-    lr: 0.0005
+    lr: 0.0001
     hidden_dimensions:
         - 12
         - 32
@@ -24,7 +24,7 @@ residual:
 not_residual:
     epochs: 70 # 90 # 50
     batch_size: 30
-    lr: 0.0001
+    lr: 0.00008
     hidden_dimensions:
         - 128
         - 64
