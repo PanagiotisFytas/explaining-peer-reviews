@@ -15,6 +15,11 @@ git clone https://github.com/allenai/PeerRead.git
 export DATA=$(pwd)
 ```
 
+### SciBERT
+
+Be sure to save the SciBERT weights (from https://github.com/allenai/scibert) to the following path under the
+data root (`$DATA`).
+
 Be sure to export the path to directory where PeerRead is in, as specified above. This is essential
 for reading the data from PeerRead.
 
@@ -70,6 +75,28 @@ this, the explanations must have been saved in appropriate files.
 of the final acceptance decision.
 - `majority_baseline_per_review.py` : prints the majority baseline for the prediction
 of reviewer recommendations.
+
+## Main Classifiers
+
+This are the files of the main classifier build for this project:
+
+- `bert_meta_review_classifier.py` : uses a BERT based model to classify the meta-reviews. In order to explain
+the predictions of that classifier `generate_explanations.py` must be run. This will take around 6 hours
+on a GPU (Be sure to modify the static variable accordingly). Afterwards, run `bert_lime_explanations.py` to produce the global explanations and metrics on those
+explanations (Be sure to modify the static variable accordingly).
+- `bert_final_decision_classifier.py` : uses a BERT based model to classify the peer reviews on a submission level. 
+In order to explain the predictions of that classifier `generate_explanations.py` must be run. This will take around 12 hours on a GPU (Be sure to modify the static variable accordingly). Afterwards, run `bert_lime_explanations.py` to produce the global explanations and metrics on those
+explanations (Be sure to modify the static variable accordingly).
+- `bert_classifier_per_review.py` : uses a BERT based model to classify the peer reviews on a review level. 
+In order to explain the predictions of that classifier `generate_bert_per_review_explanations.py` must be run. This will take around 12 hours on a GPU. Afterwards, run `bert_lime_explanations_per_review.py` to produce the global explanations and metrics on those explanations. Modify the `config/BERT_classifier_per_review.yaml` file to 
+change hyperparameters, specify if a causal model must be trained, etc.
+- `lstm_att_classifier.py` : uses a RNN model to classify the meta-reviews. In order to explain
+the predictions of that classifier `lstm_att_explanations.py` must be run. Modify the `config/lstm_att_classifier.yaml` file to change hyperparameters, RNN type, specify if a causal model must be trained, etc.
+- `lstm_att_classifier_per_review.py` : uses a RNN model to classify the indiviudal peer reviews. In order to explain
+the predictions of that classifier `lstm_att_explanations_per_review.py` must be run. Modify the `config/lstm_att_classifier_per_review.yaml` file to change hyperparameters, RNN type, specify if a causal model must be trained, etc.
+- `bow_classifier_per_review.py` : uses a BoW model to classify the indiviudal peer reviews. Before running this model,, be sure to have saved one of the lexicons from the previous peer review models. In order to explain
+the predictions of that classifier `bow_explanations_per_review.py` must be run. Modify the `config/BOW_classifier_per_review.yaml` file to change hyperparameters, specify if a causal model must be trained, etc.
+
 
 <!-- # Get Features from PeerRead
 

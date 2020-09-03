@@ -10,7 +10,8 @@ import os
 import matplotlib.pyplot as plt
 
 
-device_idx = input("GPU: ")
+#ask for which GPU  to use
+device_idx = input("Specify GPU Index: ")
 GPU = True
 if GPU:
     device = torch.device("cuda:" + device_idx if torch.cuda.is_available() else "cpu")
@@ -18,6 +19,7 @@ else:
     device = torch.device("cpu")
 print(device)
 
+#specify whether to cross validate
 cross_validation = False
 # cross_validation = True
 
@@ -32,6 +34,7 @@ data_loader = DataLoader(device=device,
                          )
 
 try:
+    # try and read the embeddings from disk
     embeddings_input = data_loader.read_embeddigns_from_file()
 except FileNotFoundError:
     # create file with embeddings if it does not exist
@@ -46,6 +49,7 @@ labels = data_loader.read_labels().to(device)
 
 _, _, embedding_dimension = embeddings_input.shape
 
+#specify hyperparams
 epochs = 100
 batch_size = 100  # 30
 lr = 0.0001
@@ -63,12 +67,6 @@ if cross_validation:
     data = [embeddings_input, number_of_reviews, labels]
     cross_validation_metrics(network, network_params, optimizer, loss_fn, lr,
                              epochs, batch_size, device, data, k=5, shuffle=True)
-    # # dataset = CustomDataset(embeddings_input, number_of_reviews, labels)
-    # dataset = Dataset({'inp': embeddings_input, 'lengths': number_of_reviews}, labels)
-    # # X_dict = {'inp': embeddings_input, 'lengths': number_of_reviews}
-    # print(embeddings_input.shape, number_of_reviews.shape, labels.shape)
-    # net.fit(dataset, y=labels)
-    # preds = cross_val_predict(net, dataset, y=labels.to('cpu'), cv=5)
 else:
     # hold-one-out split
     model = AttentionClassifier(dropout=0.5, input_size=embedding_dimension, hidden_dimensions=hidden_dimensions)
@@ -100,15 +98,17 @@ else:
 
     model.to(device)
 
+    # train the model
     losses = training_loop(data, test_data, model, device, optimizer, loss_fn, return_losses=True, epochs=epochs, batch_size=batch_size)
 
     train_losses, test_losses = losses
     plt.plot(train_losses, label='Train Loss')
     plt.plot(test_losses, label='Test Loss')
     plt.legend()
-    plt.savefig('/home/pfytas/peer-review-classification/bert_meta_losses.png')
+    plt.savefig('bert_meta_losses.png')
 
     model_path = DataLoader.DATA_ROOT / 'final_decision_only'
     model_path.mkdir(parents=True, exist_ok=True)
 
-    # torch.save(model, model_path / 'model.pt')
+    # save model
+    torch.save(model, model_path / 'model.pt')

@@ -259,27 +259,6 @@ if __name__ == "__main__":
     bow = torch.tensor(bow).float()
 
 
-
-    # ## SKLEARN Logistic Regression ###
-    # train_bow = generate_freq_bow_for_lexicon(filtered_lexicon, word_to_idx, train_text_input, freq=False)
-    # test_bow = generate_freq_bow_for_lexicon(filtered_lexicon, word_to_idx, test_text_input, freq=False)
-
-
-    # train_labels = train_labels.numpy()
-    # test_labels = test_labels.numpy()
-
-
-    # clf =  LogisticRegression(max_iter=100000).fit(train_bow, train_labels)
-    # print(clf.score(test_bow, test_labels))
-    # preds_prob = clf.predict_proba(test_bow)[:, 0]
-    # print('MSE with probs', mean_squared_error(test_labels, preds_prob))
-    # preds = clf.predict(test_bow)
-    # print('MSE with labels', mean_squared_error(test_labels, preds))
-    # print('Classification report:\n', classification_report(test_labels, preds))
-
-    # exit()
-    # #####
-
     if causal_layer == 'residual':
         nn_conf = config[causal_layer]
     else:
@@ -327,12 +306,6 @@ if __name__ == "__main__":
 
         cross_validation_metrics(network, network_params, optimizer, loss_fn, lr,
                                 epochs, batch_size, device, data, k=5, shuffle=True)
-        # # dataset = CustomDataset(embeddings_input, number_of_reviews, labels)
-        # dataset = Dataset({'inp': embeddings_input, 'lengths': number_of_reviews}, labels)
-        # # X_dict = {'inp': embeddings_input, 'lengths': number_of_reviews}
-        # print(embeddings_input.shape, number_of_reviews.shape, labels.shape)
-        # net.fit(dataset, y=labels)
-        # preds = cross_val_predict(net, dataset, y=labels.to('cpu'), cv=5)
     else:
         # hold-one-out split
         model = BoWClassifier(device,
@@ -410,7 +383,7 @@ if __name__ == "__main__":
             plt.plot(train_losses, label='Train Loss')
             plt.plot(test_losses, label='Test Loss')
             plt.legend()
-            plt.savefig('/home/pfytas/peer-review-classification/bow_losses.png')
+            plt.savefig('bow_losses.png')
             model_path = LSTMPerReviewDataLoader.DATA_ROOT / 'bow_classifier_per_review'
         else:
             train_losses, test_losses, confounding_train_losses, confounding_test_losses = losses
@@ -420,7 +393,7 @@ if __name__ == "__main__":
             plt.plot(confounding_test_losses, label='Confounding Test Loss')
             plt.legend()
             # plt.yscale('log')
-            plt.savefig('/home/pfytas/peer-review-classification/bow_losses.png')
+            plt.savefig('bow_losses.png')
             model_path = LSTMPerReviewDataLoader.DATA_ROOT / ('bow_classifier_per_review' + causal_layer)
         model_path.mkdir(parents=True, exist_ok=True)
         torch.save(model, model_path / 'model.pt')

@@ -8,8 +8,12 @@ from DataLoader import DataLoader
 import pickle
 
 
-# final_decision = 'only'
-final_decision = 'exclude'
+# When final decision is 'exclude', will generate the explanation
+# for the Final Decision Peer Review Classifier. When it is 'only'
+# for the Meta-Review Classifier.
+final_decision = 'exclude' # 'only
+
+
 if final_decision == 'only':
     clf_to_explain = 'final_decision_only'
 else:

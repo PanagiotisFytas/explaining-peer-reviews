@@ -220,7 +220,7 @@ else:
         plt.plot(train_losses, label='Train Loss')
         plt.plot(test_losses, label='Test Loss')
         plt.legend()
-        plt.savefig('/home/pfytas/peer-review-classification/lstm_per_review_losses_non_causal.png')
+        plt.savefig('lstm_per_review_losses_non_causal.png')
         model_path = LSTMPerReviewDataLoader.DATA_ROOT / 'lstm_att_classifier_per_review'
     else:
         train_losses, test_losses, confounding_train_losses, confounding_test_losses = losses
@@ -230,7 +230,7 @@ else:
         plt.plot(confounding_test_losses, label='Confounding Test Loss')
         plt.legend()
         plt.yscale('log')
-        plt.savefig('/home/pfytas/peer-review-classification/lstm_per_review_losses.png')
+        plt.savefig('lstm_per_review_losses.png')
         model_path = LSTMPerReviewDataLoader.DATA_ROOT / ('lstm_att_classifier_per_review' + causal_layer)
     model_path.mkdir(parents=True, exist_ok=True)
     # torch.save(model, model_path / 'model.pt')

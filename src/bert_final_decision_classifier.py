@@ -120,7 +120,7 @@ else:
     plt.plot(train_losses, label='Train Loss')
     plt.plot(test_losses, label='Test Loss')
     plt.legend()
-    plt.savefig('/home/pfytas/peer-review-classification/bert_final_decision_losses.png')
+    plt.savefig('bert_final_decision_losses.png')
 
 
     model_path = DataLoader.DATA_ROOT / 'no_final_decision'

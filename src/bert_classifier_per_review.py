@@ -10,11 +10,13 @@ import matplotlib.pyplot as plt
 import yaml
 
 
+# read configuration
 with open('src/config/BERT_classifier_per_review.yaml') as f:
     config = yaml.load(f, Loader=yaml.FullLoader)
 
 print(config)
 
+# read cude idx
 device_idx = config['CUDA']
 GPU = True
 if GPU:
@@ -106,14 +108,6 @@ if cross_validation:
                                  shuffle=True, loss2_mult=config['loss2_mult'])
 
 
-    # cross_validation_metrics(network, network_params, optimizer, loss_fn, lr,
-    #                          epochs, batch_size, device, data, k=5, shuffle=True)
-    # # dataset = CustomDataset(embeddings_input, number_of_reviews, labels)
-    # dataset = Dataset({'inp': embeddings_input, 'lengths': number_of_reviews}, labels)
-    # # X_dict = {'inp': embeddings_input, 'lengths': number_of_reviews}
-    # print(embeddings_input.shape, number_of_reviews.shape, labels.shape)
-    # net.fit(dataset, y=labels)
-    # preds = cross_val_predict(net, dataset, y=labels.to('cpu'), cv=5)
 else:
     # hold-one-out split
     model = BERTClassifier(device,
@@ -193,7 +187,7 @@ else:
         plt.plot(train_losses, label='Train Loss')
         plt.plot(test_losses, label='Test Loss')
         plt.legend()
-        plt.savefig('/home/pfytas/peer-review-classification/bert_losses.png')
+        plt.savefig('bert_losses.png')
         model_path = PerReviewDataLoader.DATA_ROOT / 'bert_classifier_per_review'
     else:
         train_losses, test_losses, confounding_train_losses, confounding_test_losses = losses
@@ -203,7 +197,7 @@ else:
         plt.plot(confounding_test_losses, label='Confounding Test Loss')
         plt.legend()
         # plt.yscale('log')
-        plt.savefig('/home/pfytas/peer-review-classification/bert_losses.png')
+        plt.savefig('bert_losses.png')
         model_path = PerReviewDataLoader.DATA_ROOT / ('bert_classifier_per_review' + causal_layer)
     model_path.mkdir(parents=True, exist_ok=True)
     # torch.save(model, model_path / 'model.pt')
