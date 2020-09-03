@@ -45,7 +45,7 @@ The files can be executed by running, for instance,
 the following:
 
 ```bash
-python src/basic_GRU_Classifier.py
+python src/lstm_att_classifier_per_review.py
 ```
 Those scrips need to be executed from the ROOT directory of 
 the project.
@@ -53,14 +53,23 @@ the project.
 ## Overview of Main Utility Files
 
 - `DataLoader.py` : offers the functionality needed to read the data from PeerRead,
-perform Preprocessing and generate BERT embeddings.
-- `helper_functions.py` :
-- `models.py` :
-- `abstract_classifier.py` :
-- `length_hist.py` :
-- `logistic_regression_curves_per_review.py` :
-- `majority_baseline.py` :
-- `majority_baseline_per_review.py` :
+perform Preprocessing and generate BERT embeddings. Depending on whether the data
+should be used by BERT-based or RNN classifiers different, different classes should
+be used.
+- `helper_functions.py` : contains the main functionality needed to train and test 
+the models (e.g. training loops, cross-validation functions etc.)
+- `models.py` : contains the main PyTorch models used for our various classifiers.
+- `abstract_classifier.py` : trains a classifier to predict whether a paper
+is going to be accepted for publication solely based on the abstract.
+- `length_hist.py` : provides histograms and other information concerning the
+lengths of peer reviews and meta-reviews.
+- `logistic_regression_curves_per_review.py` : produces the logistic regression
+curves needed for benchmarking different explainability techniques. Before running
+this, the explanations must have been saved in appropriate files.
+- `majority_baseline.py` : prints the majority baseline for the prediction
+of the final acceptance decision.
+- `majority_baseline_per_review.py` : prints the majority baseline for the prediction
+of reviewer recommendations.
 
 <!-- # Get Features from PeerRead
 
