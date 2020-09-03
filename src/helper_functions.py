@@ -132,6 +132,8 @@ def cross_validation_metrics(network, network_params, optimizer_class, loss_fn_c
         loss_fn = loss_fn_class()
         if causal_layer:
             conf_loss_fn = confounding_loss_fn()
+        else:
+            conf_loss_fn = None
 
         valid_idx = indices[start:end]
         train_idx = np.append(indices[:start], indices[end:])

@@ -16,9 +16,12 @@ causal_layer = None
 lr_steps = range(10, 501, 10) #50)
 
 if per_review:
-    clfs = ['lstm_att_classifier_per_review', 'bert_classifier_per_review', 'bow_classifier_per_review', 
-    'no_final_decision']
-    plt_labels = ['GRU+ATTN', 'BERT+lime', 'BOW', 'BERT+lime final acceptance']
+    clfs = ['lstm_att_classifier_per_review', 'bert_classifier_per_review', 
+    'no_final_decision',  'bow_classifier_per_review']
+    plt_labels = ['GRU+ATTN', 'BERT+lime', 'BERT+lime final acceptance', 'BoW']
+    # plt_labels = ['GRU+ATTN', 'BERT+lime individual', 'BERT+lime final acceptance']
+    points = ['.','.','.']
+    title = 'Peer Reviews'
     data_loader = LSTMPerReviewDataLoader(device='cpu',
                                           lemmatise=True, 
                                           lowercase=True, 
@@ -41,7 +44,8 @@ if per_review:
 else:
     clfs = ['lstm_att_classifier', 'final_decision_only']
     plt_labels = ['GRU+ATTN', 'BERT+lime']
-
+    points = ['.','.']
+    title = 'Meta-reviews'
     data_loader = LSTMEmbeddingLoader(device='cpu',
                                     lemmatise=True, 
                                     lowercase=True, 
@@ -113,8 +117,9 @@ for clf in clfs:
     clfs_accs.append(accs)
 
 for idx in range(len(clfs)):
-    plt.plot(lr_steps, clfs_losses[idx], label=plt_labels[idx])
+    plt.plot(lr_steps, clfs_losses[idx], marker='.', label=plt_labels[idx])
 plt.legend()
+plt.title(title)
 plt.xlabel('Lexicon Size')
 plt.ylabel('Loss')
 if per_review:
@@ -127,8 +132,9 @@ else:
 plt.clf()
 
 for idx in range(len(clfs)):
-    plt.plot(lr_steps, clfs_probs1_losses[idx], label=plt_labels[idx])
+    plt.plot(lr_steps, clfs_probs1_losses[idx], marker='.', label=plt_labels[idx])
 plt.legend()
+plt.title(title)
 plt.xlabel('Lexicon Size')
 plt.ylabel('Loss')
 if per_review:
@@ -141,8 +147,9 @@ else:
 plt.clf()
 
 for idx in range(len(clfs)):
-    plt.plot(lr_steps, clfs_probs2_losses[idx], label=plt_labels[idx])
+    plt.plot(lr_steps, clfs_probs2_losses[idx], marker='.', label=plt_labels[idx])
 plt.legend()
+plt.title(title)
 plt.xlabel('Lexicon Size')
 plt.ylabel('Loss')
 if per_review:
@@ -155,8 +162,9 @@ else:
 plt.clf()
 
 for idx in range(len(clfs)):
-    plt.plot(lr_steps, clfs_accs[idx], label=plt_labels[idx])
+    plt.plot(lr_steps, clfs_accs[idx], marker='.', label=plt_labels[idx])
 plt.legend()
+plt.title(title)
 plt.xlabel('Lexicon Size')
 plt.ylabel('F1')
 if per_review:

@@ -1,9 +1,10 @@
-from DataLoader import PerReviewDataLoader
+from DataLoader import DataLoader
 import matplotlib.pyplot as plt
+import numpy as np
 
-data_loader = PerReviewDataLoader(device='cpu',
+data_loader = DataLoader(device='cpu',
                                   remove_stopwords=False,
-                                  final_decision='exclude',
+                                  final_decision='only',
                                   pretrained_weights='scibert_scivocab_uncased',
                                   allow_empty=False
                                   )
@@ -11,7 +12,8 @@ data_loader = PerReviewDataLoader(device='cpu',
 # embeddings_input = data_loader.read_embeddigns_from_file()
 reviews = data_loader.read_reviews_only_text()
 
-lengths = [len(review.split()) for review in reviews]
+lengths = [len(review[0].split()) for review in reviews]
+print(np.mean(lengths), np.std(lengths))
 
 
 cnt = 0

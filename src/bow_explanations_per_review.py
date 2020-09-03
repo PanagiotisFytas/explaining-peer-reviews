@@ -240,7 +240,7 @@ if __name__ == '__main__':
     model.device = device
 
     test_embeddings_input = test_embeddings_input.to(device)
-    exp = generate_bow_explanations(model, test_text_input, filtered_lexicon, causal_layer, complex_explanations=False, get_only_test_words=False)
+    exp = generate_bow_explanations(model, test_text_input, filtered_lexicon, causal_layer, complex_explanations=True, get_only_test_words=False)
     exp['Mean'] = exp['Mean'].abs()
     # get explanation (and lexicon) from test set
 
@@ -284,7 +284,7 @@ if __name__ == '__main__':
         print('MSE with labels', mean_squared_error(y, preds))
         print('Classification report:\n', classification_report(y, preds))
     else:
-        clf =  LogisticRegression(max_iter=1000).fit(train_bow, train_labels_df)
+        clf =  LogisticRegression(max_iter=2000).fit(train_bow, train_labels_df)
         print(clf.score(test_bow, test_labels_df))
         preds_prob = clf.predict_proba(test_bow)[:, 0]
         print('MSE with probs', mean_squared_error(test_labels_df, preds_prob))
@@ -332,7 +332,7 @@ if __name__ == '__main__':
         print('MSE with labels', mean_squared_error(y, preds))
         print('Classification report:\n', classification_report(y, preds))
     else:
-        clf =  LogisticRegression(max_iter=1000).fit(train_confounders, train_labels_df)
+        clf =  LogisticRegression(max_iter=2000).fit(train_confounders, train_labels_df)
         print(clf.score(test_confounders, test_labels_df))
         preds_prob = clf.predict_proba(test_confounders)[:, 0]
         print('MSE with probs', mean_squared_error(test_labels_df, preds_prob))
@@ -345,4 +345,7 @@ if __name__ == '__main__':
     # lexicon_path = str(path / 'lexicon.csv')
     # exp.to_csv(lexicon_path, index=False)
 
-            
+exp.index = exp.index = np.arange(1, len(exp) + 1)
+print(exp[:50].to_latex())
+for word in exp['Words'].tolist()[:25]:
+    print(word)

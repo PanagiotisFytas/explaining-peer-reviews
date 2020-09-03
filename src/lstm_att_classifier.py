@@ -178,7 +178,7 @@ else:
         data = [embeddings_input, number_of_tokens, labels]
         test_data = [test_embeddings_input, test_number_of_tokens, test_labels]
     else:
-        confounding_loss_fn = nn.MSELoss() # nn.BCELoss()
+        confounding_loss_fn = nn.BCELoss()
         data = [embeddings_input, number_of_tokens, labels, confounders]
         test_data = [test_embeddings_input, test_number_of_tokens, test_labels, test_confounders]
 

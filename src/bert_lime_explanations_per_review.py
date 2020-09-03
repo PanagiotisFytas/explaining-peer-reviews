@@ -194,3 +194,7 @@ else:
     print('MSE with labels', mean_squared_error(test_labels_df, preds))
     print('Classification report:\n', classification_report(test_labels_df, preds))
     print('#############################################')
+
+
+exp.index = exp.index = np.arange(1, len(exp) + 1)
+print(exp[:50].to_latex())

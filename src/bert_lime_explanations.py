@@ -73,7 +73,7 @@ exp = combine_explanations(clf_to_explain=clf_to_explain, lemmatize=True)
 exp['Mean'] = exp['Mean'].abs()
 data_loader = DataLoader(device=device,
                                   remove_stopwords=False,
-                                  final_decision='exclude',
+                                  final_decision=final_decision,
                                   pretrained_weights='scibert_scivocab_uncased',
                                   allow_empty=False
                                   )
@@ -214,3 +214,7 @@ else:
     print('MSE with labels', mean_squared_error(test_labels_df, preds))
     print('Classification report:\n', classification_report(test_labels_df, preds))
     print('#############################################')
+
+exp.index = exp.index = np.arange(1, len(exp) + 1)
+print(exp[:50].to_latex())
+            

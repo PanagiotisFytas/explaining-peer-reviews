@@ -131,13 +131,13 @@ if cross_validation:
     if not causal_layer:
         data = [embeddings_input, number_of_tokens, labels]
         cross_validation_metrics(network, network_params, optimizer, loss_fn, lr,
-                                 epochs, batch_size, device, data, k=5, shuffle=True)
+                                 epochs, batch_size, device, data, k=folds, shuffle=True)
     else:
         data = [embeddings_input, number_of_tokens, labels, confounders]
-        confounding_loss_fn = nn.MSELoss
+        confounding_loss_fn = nn.BCELoss
         cross_validation_metrics(network, network_params, optimizer, loss_fn, lr,
-                                 epochs, batch_size, device, data, confounding_loss_fn=confounding_loss_fn, k=5, shuffle=True)
-
+                                 epochs, batch_size, device, data, causal_layer=causal_layer,
+                                 confounding_loss_fn=confounding_loss_fn, k=folds, shuffle=True)
 
 else:
     # hold-one-out split
@@ -233,4 +233,4 @@ else:
         plt.savefig('/home/pfytas/losses.png')
         model_path = LSTMPerReviewDataLoader.DATA_ROOT / ('lstm_att_classifier_per_review' + causal_layer)
     model_path.mkdir(parents=True, exist_ok=True)
-    torch.save(model, model_path / 'model.pt')
+    # torch.save(model, model_path / 'model.pt')

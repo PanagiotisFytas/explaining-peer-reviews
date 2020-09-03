@@ -26,9 +26,9 @@ print(labels.shape)
 majoriy_clf = DummyClassifier(strategy='most_frequent')
 
 
-preds = cross_val_predict(majoriy_clf, embeddings_input, labels, cv=5)
+preds = cross_val_predict(majoriy_clf, embeddings_input, labels, cv=10)
 
-print('5-CV Majority Classifier:\n', classification_report(labels, preds, output_dict=True))
+print('10-CV Majority Classifier:\n', classification_report(labels, preds, output_dict=True))
 
 
 valid_size = 0.1
@@ -51,3 +51,19 @@ majoriy_clf.fit(embeddings_input, labels)
 preds = majoriy_clf.predict(test_embeddings_input)
 
 print('Majority Classifier:\n', classification_report(test_labels, preds, digits=4))
+
+import matplotlib.pyplot as plt
+from matplotlib.ticker import PercentFormatter
+
+scores = scores.to(device='cpu').numpy()
+test_scores = scores[test_idx]
+
+plt.hist([scores, test_scores],  bins=range(1,12), histtype='bar', label=['Overall Scores', 'Test Set Scores'],
+         weights=[np.ones(len(scores)) / len(scores), np.ones(len(test_scores)) / len(test_scores)],
+         align='left')
+plt.gca().yaxis.set_major_formatter(PercentFormatter(1))
+plt.legend()
+plt.xlabel('Recommendation Score')
+plt.xticks(range(1,11))
+plt.title('Review Recommendation Score Distribution')
+plt.savefig('/home/pfytas/peer-review-classification/hist_scores.png')

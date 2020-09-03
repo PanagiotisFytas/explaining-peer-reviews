@@ -410,7 +410,7 @@ if __name__ == "__main__":
             plt.plot(train_losses, label='Train Loss')
             plt.plot(test_losses, label='Test Loss')
             plt.legend()
-            plt.savefig('/home/pfytas/losses.png')
+            plt.savefig('/home/pfytas/peer-review-classification/bow_losses.png')
             model_path = LSTMPerReviewDataLoader.DATA_ROOT / 'bow_classifier_per_review'
         else:
             train_losses, test_losses, confounding_train_losses, confounding_test_losses = losses
@@ -420,7 +420,7 @@ if __name__ == "__main__":
             plt.plot(confounding_test_losses, label='Confounding Test Loss')
             plt.legend()
             # plt.yscale('log')
-            plt.savefig('/home/pfytas/losses.png')
+            plt.savefig('/home/pfytas/peer-review-classification/bow_losses.png')
             model_path = LSTMPerReviewDataLoader.DATA_ROOT / ('bow_classifier_per_review' + causal_layer)
         model_path.mkdir(parents=True, exist_ok=True)
         torch.save(model, model_path / 'model.pt')

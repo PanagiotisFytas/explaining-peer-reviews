@@ -1,11 +1,11 @@
 CUDA: '2'
-causal_layer: residual # null | adversarial | residual
+causal_layer: null # null | adversarial | residual
 aspect: abstract # abstract | structure | grammar_errors
-cross_validation: True
+cross_validation: False
 cv_explanation: False
 #task: classification # classification | regression
 folds: 10
-lexicon_size: 50 #50 #200 #1000
+lexicon_size: 60 #50 #200 #1000
 on_validation_set: False #True # if True will not use test set
 num_features: 50 #200 # 20
 # increasing number of features -> more words per sample -> reduct the mean significance of important words that only appear once
@@ -13,7 +13,7 @@ num_samples: 15000 # 15000
 BATCH_SIZE: 400 # 200
 loss2_mult: 2
 residual:
-    epochs: 125 # 200
+    epochs: 175 # 200
     batch_size: 300 #300 #500 # 30
     lr: 0.0001 #0.0004# 0.0005
     hidden_dimensions:
@@ -30,16 +30,16 @@ residual:
     activation: ReLU
     activation2: ReLU
 not_residual:
-    epochs: 320 # 220
-    batch_size: 500 # 300 #500 # 30
+    epochs: 220 # 320 # 220
+    batch_size: 300 # 500 # 300 #500 # 30
     lr: 0.0001 #0.0001# 0.00009
     hidden_dimensions:
-        - 16
+        - 64
         #- 64
     BERT_hidden_dimensions:
         #- 300
         #- 128
-        - 64
+        - 128
         # - 30 # 10 # 300 good performance bad conf on GRU # 120 # 500
     causal_hidden_dimensions: 
         - 10 # 30

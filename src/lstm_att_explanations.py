@@ -133,7 +133,7 @@ if __name__ == '__main__':
     print(embeddings_input.shape)
     labels = data_loader.read_labels().to(device)
     _, _, embedding_dimension = embeddings_input.shape
-    if causal_layer == 'residual':
+    if causal_layer == 'residual' or config['aspect'] == 'abstract':
         confounders = data_loader.read_abstract_embeddings()
     else:
         confounders = data_loader.read_average_scores(aspect=config['aspect'])
@@ -219,7 +219,7 @@ if __name__ == '__main__':
         print('MSE with labels', mean_squared_error(test_labels_df, preds))
         print('Classification report:\n', classification_report(test_labels_df, preds))
     print('#############################################')
-    if causal_layer:
+    if causal_layer or config['aspect'] == 'abstract':
         print('###### LR on lexicon (confounders conf.): ######')
 
         # concatenate lexicon bag of words with confounders embeddins
@@ -268,4 +268,5 @@ if __name__ == '__main__':
             print('Classification report:\n', classification_report(test_labels_df, preds))
             print('#############################################')
 
-            
+    exp.index = exp.index = np.arange(1, len(exp) + 1)
+    print(exp[:50].to_latex())

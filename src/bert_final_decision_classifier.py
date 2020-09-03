@@ -5,6 +5,7 @@ from DataLoader import DataLoader
 import numpy as np
 from helper_functions import training_loop, cross_validation_metrics
 from models import MultiheadClassifier
+import matplotlib.pyplot as plt
 
 
 device_idx = input("GPU: ")
@@ -15,8 +16,8 @@ else:
     device = torch.device("cpu")
 print(device)
 
-# cross_validation = False
-cross_validation = True
+cross_validation = False
+# cross_validation = True
 
 
 data_loader = DataLoader(device=device,
@@ -54,8 +55,8 @@ labels = data_loader.read_labels().to(device)
 
 _, _, embedding_dimension = embeddings_input.shape
 
-epochs = 500
-batch_size = 120  # 100
+epochs = 200
+batch_size = 100  # 100
 lr = 0.0001
 hidden_dimensions = [128, 64] # [1500, 700, 300]
 heads = 2
@@ -112,7 +113,15 @@ else:
 
     model.to(device)
 
-    training_loop(data, test_data, model, device, optimizer, loss_fn, epochs=epochs, batch_size=batch_size)
+    losses = training_loop(data, test_data, model, device, optimizer, loss_fn, 
+                           return_losses=True, epochs=epochs, batch_size=batch_size)
+
+    train_losses, test_losses = losses
+    plt.plot(train_losses, label='Train Loss')
+    plt.plot(test_losses, label='Test Loss')
+    plt.legend()
+    plt.savefig('/home/pfytas/peer-review-classification/bert_final_decision_losses.png')
+
 
     model_path = DataLoader.DATA_ROOT / 'no_final_decision'
     model_path.mkdir(parents=True, exist_ok=True)

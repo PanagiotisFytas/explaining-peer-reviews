@@ -1,15 +1,15 @@
-CUDA: '1'
-causal_layer: null # null | adversarial | residual
+CUDA: '2'
+causal_layer: residual # null | adversarial | residual
 aspect: abstract # abstract | structure | grammar_errors
 cross_validation: False
 cv_explanation: False
 task: classification # classification | regression
-folds: 5
-lexicon_size: 1000 # 50
+folds: 10
+lexicon_size: 150 # 50
 on_validation_set: False # if True will not use test set
 residual:
-    epochs: 70
-    batch_size: 250 #500 # 30
+    epochs: 80
+    batch_size: 500 #500 # 30
     lr: 0.0005 #0.0004# 0.0005
     hidden_dimensions:
         - 16
@@ -21,7 +21,7 @@ residual:
     causal_hidden_dimensions : 
         - 10 # 30
         - 5
-    att_dim: 10
+    att_dim: 64
 not_residual:
     epochs: 80 # 110
     batch_size: 500 # 150 # 30

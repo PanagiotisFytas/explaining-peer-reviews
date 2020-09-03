@@ -1,28 +1,28 @@
-CUDA: '0'
+CUDA: '2'
 causal_layer: null # adversarial # null | adversarial | residual
-aspect: RECOMMENDATION
+aspect: abstract # RECOMMENDATION
 cross_validation: False
 cv_explanation: False
-folds: 5
-lexicon_size: 1000 # 20
-on_validation_set: True # if True will not use test set
+folds: 10
+lexicon_size: 60 # 20
+on_validation_set: False # if True will not use test set
 residual:
-    epochs: 100
-    batch_size: 70 # 30
-    lr: 0.0005 # 0.0001
+    epochs: 70 # 90 # 50
+    batch_size: 30
+    lr: 0.0005
     hidden_dimensions:
-        - 320
-        - 64 
-    lstm_hidden_dimension: 120 # 30 # 300 good performance bad conf on GRU # 120 # 500
-    num_layers: 1  # Layers in the RN. Having more than 1 layer probably makes interpretability worst by combining more tokens into hiddent embs
+        - 12
+        - 32
+    lstm_hidden_dimension: 64 # 30 # 300 good performance bad conf # 120 # 500
+    num_layers: 1  # Layers in the RNN. Having more than 1 layer probably makes interpretability worst by combining more tokens into hiddent embs
     bidirectional: False
-    cell_type: 'LSTM' # 'GRU'
-    causal_hidden_dimensions : 
-        - 300 # [64]
-        - 128
+    cell_type: 'GRU' # 'GRU'
+    causal_hidden_dimensions: 
+        - 30
+        - 20 # [64]
     att_dim: 50
 not_residual:
-    epochs: 110 # 90 # 50
+    epochs: 70 # 90 # 50
     batch_size: 30
     lr: 0.0001
     hidden_dimensions:
@@ -36,3 +36,18 @@ not_residual:
         - 30
         - 20 # [64]
     att_dim: 50
+# residual:
+#     epochs: 100
+#     batch_size: 70 # 30
+#     lr: 0.0005 # 0.0001
+#     hidden_dimensions:
+#         - 320
+#         - 64 
+#     lstm_hidden_dimension: 120 # 30 # 300 good performance bad conf on GRU # 120 # 500
+#     num_layers: 1  # Layers in the RN. Having more than 1 layer probably makes interpretability worst by combining more tokens into hiddent embs
+#     bidirectional: False
+#     cell_type: 'LSTM' # 'GRU'
+#     causal_hidden_dimensions : 
+#         - 300 # [64]
+#         - 128
+#     att_dim: 50

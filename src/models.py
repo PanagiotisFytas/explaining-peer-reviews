@@ -62,7 +62,7 @@ class BasicGRUClassifier(nn.Module):
 
 # this model is using 2 heads of attention
 class AttentionClassifier(nn.Module):
-    def __init__(self, input_size=768, hidden_dimensions=[500]):
+    def __init__(self, dropout=0.2, input_size=768, hidden_dimensions=[500]):
         super(AttentionClassifier, self).__init__()
         self.hidden_size = hidden_dimensions
         self.input_size = input_size
@@ -73,9 +73,9 @@ class AttentionClassifier(nn.Module):
             layer_input = layer_out
         self.last_fc = nn.Linear(layer_input, 1)
         self.sigmoid = nn.Sigmoid()
-        # self.activation= nn.Tanh()
+        self.activation= nn.ReLU()
         self.relu2 = nn.ReLU()
-        self.drop = nn.Dropout(0.2)
+        self.drop = nn.Dropout(dropout)
         self.att = nn.Linear(input_size, 1)
         self.att2 = nn.Linear(input_size, 1)
 
@@ -480,6 +480,7 @@ class BERTClassifier(nn.Module):
             self.activation = nn.ReLU()
         self.drop = nn.Dropout(dropout)
         self.causal_layer = causal_layer
+        self.drop2 = nn.Dropout(dropout2)
         # residual mlp
         if causal_layer == 'residual':
             if activation2 == 'Tanh':
@@ -487,7 +488,6 @@ class BERTClassifier(nn.Module):
             elif activation2 == 'ReLU':
                 self.activation2 = nn.ReLU()
         
-            self.drop2 = nn.Dropout(dropout2)
             layer_input = input_size
             self.causal_layers = nn.ModuleList([])
             if causal_hidden_dimensions:
@@ -511,10 +511,10 @@ class BERTClassifier(nn.Module):
 
         # out = self.relu(out)
         for layer in self.fc_layers:
-            out = self.drop(out)
+            out = self.drop2(out)
             out = layer(out)
             out = self.activation(out)
-
+        out = self.drop2(out)
         out = self.last_fc(out)
         out = torch.sigmoid(out)
         

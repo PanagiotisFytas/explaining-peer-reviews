@@ -7,6 +7,7 @@ from helper_functions import training_loop, cross_validation_metrics
 from models import AttentionClassifier
 import pathlib
 import os
+import matplotlib.pyplot as plt
 
 
 device_idx = input("GPU: ")
@@ -27,7 +28,7 @@ data_loader = DataLoader(device=device,
                          allow_empty='False',
                          pretrained_weights='scibert_scivocab_uncased',
                          remove_duplicates=True,
-                         remove_stopwords=True
+                         remove_stopwords=False
                          )
 
 try:
@@ -45,7 +46,7 @@ labels = data_loader.read_labels().to(device)
 
 _, _, embedding_dimension = embeddings_input.shape
 
-epochs = 500
+epochs = 100
 batch_size = 100  # 30
 lr = 0.0001
 hidden_dimensions = [128, 64] # [1500, 700, 300]
@@ -70,7 +71,7 @@ if cross_validation:
     # preds = cross_val_predict(net, dataset, y=labels.to('cpu'), cv=5)
 else:
     # hold-one-out split
-    model = AttentionClassifier(input_size=embedding_dimension, hidden_dimensions=hidden_dimensions)
+    model = AttentionClassifier(dropout=0.5, input_size=embedding_dimension, hidden_dimensions=hidden_dimensions)
     shuffle = False
     valid_size = 0.1
     print(embeddings_input.shape)
@@ -99,7 +100,13 @@ else:
 
     model.to(device)
 
-    training_loop(data, test_data, model, device, optimizer, loss_fn, epochs=epochs, batch_size=batch_size)
+    losses = training_loop(data, test_data, model, device, optimizer, loss_fn, return_losses=True, epochs=epochs, batch_size=batch_size)
+
+    train_losses, test_losses = losses
+    plt.plot(train_losses, label='Train Loss')
+    plt.plot(test_losses, label='Test Loss')
+    plt.legend()
+    plt.savefig('/home/pfytas/peer-review-classification/bert_meta_losses.png')
 
     model_path = DataLoader.DATA_ROOT / 'final_decision_only'
     model_path.mkdir(parents=True, exist_ok=True)

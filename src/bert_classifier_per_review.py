@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from DataLoader import PerReviewDataLoader
+from DataLoader import PerReviewDataLoader, DataLoader
 import numpy as np
 from helper_functions import training_loop, cross_validation_metrics
 from models import BERTClassifier
@@ -32,6 +32,7 @@ data_loader = PerReviewDataLoader(device=device,
                                   final_decision='exclude',
                                   allow_empty=False,
                                   truncate_policy='right',
+                                #   pretrained_weights='bert-base-uncased',
                                   pretrained_weights='scibert_scivocab_uncased',
                                   remove_duplicates=True,
                                   remove_stopwords=False)
@@ -178,6 +179,7 @@ else:
                            optimizer, 
                            loss_fn,
                            confounder_loss_fn=confounding_loss_fn,
+                           verbose=True,
                            causal_layer=causal_layer,
                            epochs=epochs, 
                            batch_size=batch_size, 

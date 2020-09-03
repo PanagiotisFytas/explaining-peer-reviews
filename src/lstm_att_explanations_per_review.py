@@ -304,4 +304,6 @@ if __name__ == '__main__':
     lexicon_path = str(path / 'lexicon.csv')
     exp.to_csv(lexicon_path, index=False)
 
-            
+
+# exp.index = exp.index = np.arange(1, len(exp) + 1)
+# print(exp[:50].to_latex())
