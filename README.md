@@ -52,12 +52,12 @@ the project.
 
 ## Overview of Main Files
 
-- **DataLoader.py** :
-- **helper_functions.py** :
-- **models.py** :
-- **abstract_classifier.py** :
-- **length_hist.py** :
-- **logistic_regression_curves_per_review.py** :
+- `DataLoader.py` :
+- `helper_functions.py` :
+- `models.py` :
+- `abstract_classifier.py` :
+- `length_hist.py` :
+- `logistic_regression_curves_per_review.py` :
 - 
 
 <!-- # Get Features from PeerRead
