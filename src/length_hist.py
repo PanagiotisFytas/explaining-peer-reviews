@@ -4,7 +4,7 @@ import numpy as np
 
 data_loader = DataLoader(device='cpu',
                                   remove_stopwords=False,
-                                  final_decision='only',
+                                  final_decision='excluded',
                                   pretrained_weights='scibert_scivocab_uncased',
                                   allow_empty=False
                                   )
@@ -30,15 +30,11 @@ for length in lengths:
     else:
         less.append(length)
 
-# plt.hist(lengths, bins=50, color=['b', 'tab:orange'])
-# plt.xticks(ticks=range(0,1537,128))
-# plt.savefig('/home/pfytas/peer-review-classification/hist.png')
-
 plt.hist([less, more], bins=range(1,1409, 32), histtype='barstacked', label=['Reviews with less than 512 tokens', 'Reviews with more than 512 tokens'])
 plt.xticks(ticks=range(0,1409,128))
 plt.legend()
 plt.xlabel('Number of Tokens in Review')
-plt.savefig('/home/pfytas/peer-review-classification/hist.png')
+plt.savefig('hist.png')
 
 print('Number of review with more that 512 tokens: ', cnt)
 print('Percentage of review with more that 512 tokens: ', cnt/len(lengths))

@@ -11,11 +11,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-per_review = True # False
+# specify whether to generate loss curves for peer reviews or for meta reviews
+peer_review = True # False
+# specify whether to genrate loss curves for the causal layer
 causal_layer = None
+# the steps of the curves
 lr_steps = range(10, 501, 10) #50)
 
-if per_review:
+if peer_review:
     clfs = ['lstm_att_classifier_per_review', 'bert_classifier_per_review', 
     'no_final_decision',  'bow_classifier_per_review']
     plt_labels = ['GRU+ATTN', 'BERT+lime', 'BERT+lime final acceptance', 'BoW']
@@ -70,7 +73,7 @@ train_idx, test_idx = indices[split:], indices[:split]
 test_labels = labels[test_idx]
 train_labels = labels[train_idx]
 
-if per_review:
+if peer_review:
     final_num_train = len(final_labels)
     final_indices = list(range(final_num_train))
     final_split = int(np.floor(valid_size * final_num_train))
@@ -122,13 +125,13 @@ plt.legend()
 plt.title(title)
 plt.xlabel('Lexicon Size')
 plt.ylabel('Loss')
-if per_review:
+if peer_review:
     if not causal_layer:
-        plt.savefig('/home/pfytas/peer-review-classification/clfs_losses_per_review.png')
+        plt.savefig('clfs_losses_per_review.png')
     else:
-        plt.savefig('/home/pfytas/peer-review-classification/clfs_losses_residual.png')
+        plt.savefig('clfs_losses_residual.png')
 else:
-    plt.savefig('/home/pfytas/peer-review-classification/clfs_losses_meta.png')
+    plt.savefig('clfs_losses_meta.png')
 plt.clf()
 
 for idx in range(len(clfs)):
@@ -137,13 +140,13 @@ plt.legend()
 plt.title(title)
 plt.xlabel('Lexicon Size')
 plt.ylabel('Loss')
-if per_review:
+if peer_review:
     if not causal_layer:
-        plt.savefig('/home/pfytas/peer-review-classification/clfs_probs1_losses_per_review.png')
+        plt.savefig('clfs_probs1_losses_per_review.png')
     else:
-        plt.savefig('/home/pfytas/peer-review-classification/clfs_probs1_losses_residual.png')
+        plt.savefig('clfs_probs1_losses_residual.png')
 else:
-    plt.savefig('/home/pfytas/peer-review-classification/clfs_probs1_losses_meta.png')
+    plt.savefig('clfs_probs1_losses_meta.png')
 plt.clf()
 
 for idx in range(len(clfs)):
@@ -152,13 +155,13 @@ plt.legend()
 plt.title(title)
 plt.xlabel('Lexicon Size')
 plt.ylabel('Loss')
-if per_review:
+if peer_review:
     if not causal_layer:
-        plt.savefig('/home/pfytas/peer-review-classification/clfs_probs2_losses_per_review.png')
+        plt.savefig('clfs_probs2_losses_per_review.png')
     else:
-        plt.savefig('/home/pfytas/peer-review-classification/clfs_probs2_losses_residual.png')
+        plt.savefig('clfs_probs2_losses_residual.png')
 else:
-    plt.savefig('/home/pfytas/peer-review-classification/clfs_probs2_losses_meta.png')
+    plt.savefig('clfs_probs2_losses_meta.png')
 plt.clf()
 
 for idx in range(len(clfs)):
@@ -167,13 +170,13 @@ plt.legend()
 plt.title(title)
 plt.xlabel('Lexicon Size')
 plt.ylabel('F1')
-if per_review:
+if peer_review:
     if not causal_layer:
-        plt.savefig('/home/pfytas/peer-review-classification/clfs_accs_per_review.png')
+        plt.savefig('clfs_accs_per_review.png')
     else:
-        plt.savefig('/home/pfytas/peer-review-classification/clfs_accs_residual.png')
+        plt.savefig('clfs_accs_residual.png')
 else:
-    plt.savefig('/home/pfytas/peer-review-classification/clfs_accs_meta.png')
+    plt.savefig('clfs_accs_meta.png')
 plt.clf()
 
 
