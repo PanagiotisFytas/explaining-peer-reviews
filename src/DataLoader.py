@@ -11,7 +11,6 @@ import spacy
 import numpy as np
 import operator
 from sklearn.datasets import load_svmlight_file
-import language_check
 
 '''
 0       get_most_recent_reference_year
