@@ -828,9 +828,9 @@ class LSTMEmbeddingLoader(DataLoader):
 
         # Construct pretrained transformer model
         # TODO there is a lowercasing probably
-        self.tokenizer = tokenizer_class.from_pretrained(self.pretrained_weights)
-        self.model = model_class.from_pretrained(self.pretrained_weights)
-        self.model.eval()
+#         self.tokenizer = tokenizer_class.from_pretrained(self.pretrained_weights)
+#         self.model = model_class.from_pretrained(self.pretrained_weights)
+#         self.model.eval()
 
         # get file names
         train_path = self.DATA_ROOT / ('PeerRead/data/' + conference) / 'train/reviews/'
